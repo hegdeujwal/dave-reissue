@@ -1,26 +1,46 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-navy: #14162b;
+  --color-bone: #f2ede3;
+  --color-orange: #ff5a1f;
+  --color-pink: #ff48b0;
+  --color-mint: #4ce0b3;
+  --color-wall: #272b4e;
+  --color-dim: #4a4f7a;
+
+  --font-display: var(--font-archivo-black), system-ui, sans-serif;
+  --font-sans: var(--font-archivo), system-ui, sans-serif;
+
+  --radius-none: 0px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-navy);
+  color: var(--color-bone);
+  font-family: var(--font-sans);
+  /* Desktop-first. The game owns the viewport, nothing scrolls behind it. */
+  overflow: hidden;
+}
+
+/* Hard 4px offset ink block. Used everywhere a drop shadow would normally go. */
+@utility ink {
+  box-shadow: 4px 4px 0 0 var(--color-bone);
+}
+
+@utility ink-orange {
+  box-shadow: 4px 4px 0 0 var(--color-orange);
+}
+
+@utility ink-mint {
+  box-shadow: 4px 4px 0 0 var(--color-mint);
+}
+
+@utility ink-dim {
+  box-shadow: 4px 4px 0 0 var(--color-dim);
 }
