@@ -1,4 +1,5 @@
 import {
+  CAMERA,
   CHARACTER_COLORS,
   FIXED_DT,
   MAX_FRAME_DT,
@@ -15,6 +16,8 @@ import {
   stepHorizontal,
   stepJump,
   stepSquash,
+  approach,
+  clamp,
   resolveX,
   resolveY,
   type Intent,
@@ -58,6 +61,7 @@ export class Game {
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.ctx = setupCanvas(canvas);
     this.player = createPlayer(this.level.spawn.x, this.level.spawn.y);
+    this.snapCamera();
   }
 
   start() {
@@ -143,13 +147,29 @@ export class Game {
     stepSquash(p, dt);
     this.intent.jumpBuffer = Math.max(0, this.intent.jumpBuffer - dt);
 
-    this.updateCamera();
+    this.updateCamera(dt);
   }
 
-  /** Follow the player, clamped so the view never leaves the level. */
-  private updateCamera() {
-    const target = this.player.x + this.player.w / 2 - VIEW_W / 2;
-    this.camX = Math.max(0, Math.min(this.level.widthPx - VIEW_W, target));
+  /**
+   * Smooth camera. It eases toward the player with a frame-rate independent
+   * lerp and looks a little way ahead of the direction of travel. The target
+   * is clamped to the level bounds, so the view never leaves the map and
+   * never flips forward by a whole screen the way the original did.
+   */
+  private updateCamera(dt: number) {
+    this.camX = approach(this.camX, this.cameraTarget(), CAMERA.lerp, dt);
+  }
+
+  private cameraTarget() {
+    const p = this.player;
+    const wanted = p.x + p.w / 2 + CAMERA.lookahead * p.facing - VIEW_W / 2;
+    return clamp(wanted, 0, Math.max(0, this.level.widthPx - VIEW_W));
+  }
+
+  /** Jump the camera straight to the target, for level loads and respawns. */
+  private snapCamera() {
+    this.camX = this.cameraTarget();
+    this.prevCamX = this.camX;
   }
 
   private draw(alpha: number) {
