@@ -11,27 +11,31 @@ import {
 import {
   drawBackdrop,
   drawDoor,
+  drawEnemy,
   drawGem,
   drawKey,
   drawPlayer,
   drawTiles,
   setupCanvas,
 } from "./render";
-import { LEVELS, Level, tileBox } from "./levels";
+import { LEVELS, Level, SPIKE, tileBox } from "./levels";
 import { Input } from "./input";
 import {
   approach,
   clamp,
+  createEnemy,
   createPlayer,
   landSquash,
   overlaps,
   resolveX,
   resolveY,
   stepCoyote,
+  stepEnemy,
   stepGravity,
   stepHorizontal,
   stepJump,
   stepSquash,
+  type Enemy,
   type Intent,
   type Player,
   type Stats,
@@ -87,6 +91,7 @@ export class Game {
 
   /** Per-level run state. */
   private gemsTaken: boolean[] = [];
+  private enemies: Enemy[] = [];
   private hasKey = false;
 
   private lastSignature = "";
@@ -134,6 +139,7 @@ export class Game {
     this.levelIndex = clamp(index, 0, LEVELS.length - 1);
     this.level = new Level(LEVELS[this.levelIndex]);
     this.gemsTaken = this.level.gems.map(() => false);
+    this.enemies = this.level.enemies.map((c) => createEnemy(c.col, c.row));
     this.hasKey = false;
     this.elapsed = 0;
     this.mode = "playing";
@@ -218,6 +224,10 @@ export class Game {
     this.prevCamX = this.camX;
     this.player.px = this.player.x;
     this.player.py = this.player.y;
+    for (const e of this.enemies) {
+      e.px = e.x;
+      e.py = e.y;
+    }
   }
 
   private fixedUpdate(dt: number) {
@@ -239,7 +249,10 @@ export class Game {
     // A jump pressed just before touchdown stays alive until the player lands.
     this.intent.jumpBuffer = Math.max(0, this.intent.jumpBuffer - dt);
 
+    for (const enemy of this.enemies) stepEnemy(enemy, this.level.isSolid, dt);
+
     this.collectPickups();
+    this.checkHazards();
     this.updateCamera(dt);
   }
 
@@ -262,6 +275,31 @@ export class Game {
         this.publish(true);
       }
     }
+  }
+
+  /** Spikes and enemies both cost the player a life on contact. */
+  private checkHazards() {
+    const p = this.player;
+
+    if (this.touchesSpike() || this.enemies.some((e) => overlaps(p, e))) {
+      this.respawn();
+    }
+  }
+
+  private touchesSpike() {
+    const p = this.player;
+    const c0 = Math.floor(p.x / TILE);
+    const c1 = Math.floor((p.x + p.w - 1) / TILE);
+    const r0 = Math.floor(p.y / TILE);
+    const r1 = Math.floor((p.y + p.h - 1) / TILE);
+
+    for (let row = r0; row <= r1; row++) {
+      for (let col = c0; col <= c1; col++) {
+        if (this.level.at(col, row) !== SPIKE) continue;
+        if (overlaps(p, tileBox({ col, row }, 6))) return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -315,6 +353,8 @@ export class Game {
         this.hasKey,
       );
     }
+
+    for (const enemy of this.enemies) drawEnemy(ctx, enemy, alpha, camX);
 
     drawPlayer(ctx, this.player, alpha, camX, CHARACTER_COLORS.dave, false, 0);
   }

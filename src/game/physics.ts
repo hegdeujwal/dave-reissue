@@ -1,4 +1,4 @@
-import { JUICE, PHYSICS, PLAYER_H, PLAYER_W, TILE } from "./theme";
+import { ENEMY, JUICE, PHYSICS, PLAYER_H, PLAYER_W, TILE } from "./theme";
 
 /** What the player is asking for this step. Comes from input, never from keys. */
 export type Intent = {
@@ -221,4 +221,38 @@ export function overlaps(a: Box, b: Box) {
   return (
     a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
   );
+}
+
+export type Enemy = {
+  x: number;
+  y: number;
+  px: number;
+  py: number;
+  w: number;
+  h: number;
+  dir: 1 | -1;
+};
+
+export function createEnemy(col: number, row: number): Enemy {
+  const x = col * TILE + (TILE - ENEMY.w) / 2;
+  const y = (row + 1) * TILE - ENEMY.h;
+  return { x, y, px: x, py: y, w: ENEMY.w, h: ENEMY.h, dir: 1 };
+}
+
+/**
+ * Enemies walk their platform and turn around at a wall or a ledge, so they
+ * never patrol themselves into a pit.
+ */
+export function stepEnemy(e: Enemy, isSolid: SolidFn, dt: number) {
+  const next = e.x + e.dir * ENEMY.speed * dt;
+  const probe = e.dir > 0 ? next + e.w : next;
+  const col = Math.floor(probe / TILE);
+  const bodyRow = Math.floor((e.y + e.h / 2) / TILE);
+  const floorRow = Math.floor((e.y + e.h + 2) / TILE);
+
+  if (isSolid(col, bodyRow) || !isSolid(col, floorRow)) {
+    e.dir = e.dir === 1 ? -1 : 1;
+    return;
+  }
+  e.x = next;
 }

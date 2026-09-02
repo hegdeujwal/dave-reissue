@@ -1,5 +1,5 @@
 import { COLORS, COMBAT, JUICE, TILE, VIEW_H, VIEW_W } from "./theme";
-import type { Player } from "./physics";
+import type { Enemy, Player } from "./physics";
 import { SOLID, SPIKE, type Level } from "./levels";
 
 /**
@@ -209,4 +209,31 @@ export function drawDoor(
     ctx.fillStyle = COLORS.orange;
     ctx.fillRect(left + w / 2 - 2, top + h / 2 - 2, 4, 4);
   }
+}
+
+/** Enemies: pink, spiked, with an eye that points where they are walking. */
+export function drawEnemy(
+  ctx: CanvasRenderingContext2D,
+  e: Enemy,
+  alpha: number,
+  camX: number,
+) {
+  const x = Math.round(e.px + (e.x - e.px) * alpha - camX);
+  const y = Math.round(e.py + (e.y - e.py) * alpha);
+
+  ctx.fillStyle = COLORS.pink;
+  ctx.fillRect(x, y + 6, e.w, e.h - 6);
+
+  ctx.beginPath();
+  for (let i = 0; i < 3; i++) {
+    const left = x + (i * e.w) / 3;
+    ctx.moveTo(left, y + 6);
+    ctx.lineTo(left + e.w / 6, y);
+    ctx.lineTo(left + e.w / 3, y + 6);
+  }
+  ctx.fill();
+
+  ctx.fillStyle = COLORS.bg;
+  const eyeX = e.dir === 1 ? x + e.w - 11 : x + 4;
+  ctx.fillRect(eyeX, y + 11, 7, 5);
 }
