@@ -22,6 +22,7 @@ import {
 } from "./render";
 import { LEVELS, Level, SPIKE, tileBox, tileToBox, type Point } from "./levels";
 import { Input } from "./input";
+import { loadSave, patchSave } from "./save";
 import {
   approach,
   clamp,
@@ -67,8 +68,11 @@ export type Snapshot = {
   toast: string | null;
 };
 
-export type GameHooks = {
+export type GameOptions = {
   onSnapshot: (snapshot: Snapshot) => void;
+  /** Where a Continue drops the player back in. */
+  startLevel?: number;
+  startCheckpoint?: Point | null;
 };
 
 /**
@@ -119,14 +123,13 @@ export class Game {
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
-    private readonly hooks: GameHooks,
-    startLevel = 0,
+    private readonly options: GameOptions,
   ) {
     this.ctx = setupCanvas(canvas);
-    this.levelIndex = clamp(startLevel, 0, LEVELS.length - 1);
+    this.levelIndex = clamp(options.startLevel ?? 0, 0, LEVELS.length - 1);
     this.level = new Level(LEVELS[this.levelIndex]);
     this.player = createPlayer(this.level.spawn.x, this.level.spawn.y);
-    this.loadLevel(this.levelIndex);
+    this.loadLevel(this.levelIndex, options.startCheckpoint ?? null);
   }
 
   start() {
@@ -149,14 +152,14 @@ export class Game {
     setupCanvas(this.canvas);
   }
 
-  loadLevel(index: number) {
+  loadLevel(index: number, checkpoint: Point | null = null) {
     this.levelIndex = clamp(index, 0, LEVELS.length - 1);
     this.level = new Level(LEVELS[this.levelIndex]);
     this.gemsTaken = this.level.gems.map(() => false);
     this.enemies = this.level.enemies.map((c) => createEnemy(c.col, c.row));
     this.hasKey = false;
     this.activeCheckpoint = -1;
-    this.checkpoint = null;
+    this.checkpoint = checkpoint;
     this.toast = null;
     this.toastTimer = 0;
     this.hearts = this.stats.hearts;
@@ -300,15 +303,41 @@ export class Game {
       if (!overlaps(p, tileBox(cell, 4))) return;
       this.activeCheckpoint = i;
       this.checkpoint = tileToBox(cell.col, cell.row);
+      this.saveCheckpoint();
       this.showToast("Checkpoint saved");
     });
 
     if (this.level.door && this.hasKey) {
       if (overlaps(p, tileBox(this.level.door, 4))) {
         this.mode = "levelComplete";
+        this.saveCompletion();
         this.publish(true);
       }
     }
+  }
+
+  /** Progress is written at exactly two moments: a checkpoint and a finish. */
+  private saveCheckpoint() {
+    if (!this.checkpoint) return;
+    patchSave({
+      checkpoint: {
+        level: this.levelIndex,
+        x: this.checkpoint.x,
+        y: this.checkpoint.y,
+      },
+    });
+  }
+
+  private saveCompletion() {
+    const current = loadSave();
+    patchSave({
+      unlockedLevels: Math.max(
+        current.unlockedLevels,
+        Math.min(this.levelIndex + 2, LEVELS.length),
+      ),
+      gems: current.gems + this.gemsTaken.filter(Boolean).length,
+      checkpoint: null,
+    });
   }
 
   private showToast(message: string) {
@@ -487,7 +516,7 @@ export class Game {
     ].join("|");
     if (!force && signature === this.lastSignature) return;
     this.lastSignature = signature;
-    this.hooks.onSnapshot(snapshot);
+    this.options.onSnapshot(snapshot);
   }
 }
 

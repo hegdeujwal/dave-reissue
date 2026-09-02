@@ -2,15 +2,22 @@
 
 import { useEffect, useRef } from "react";
 import { Game, type Snapshot } from "@/game/engine";
+import type { Point } from "@/game/levels";
 
 type Props = {
   onSnapshot: (snapshot: Snapshot) => void;
   onReady?: (game: Game) => void;
   startLevel?: number;
+  startCheckpoint?: Point | null;
 };
 
 /** Owns the single <canvas> and the Game instance that draws into it. */
-export default function GameCanvas({ onSnapshot, onReady, startLevel = 0 }: Props) {
+export default function GameCanvas({
+  onSnapshot,
+  onReady,
+  startLevel = 0,
+  startCheckpoint = null,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const onSnapshotRef = useRef(onSnapshot);
   const onReadyRef = useRef(onReady);
@@ -24,11 +31,11 @@ export default function GameCanvas({ onSnapshot, onReady, startLevel = 0 }: Prop
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const game = new Game(
-      canvas,
-      { onSnapshot: (snapshot) => onSnapshotRef.current(snapshot) },
+    const game = new Game(canvas, {
+      onSnapshot: (snapshot) => onSnapshotRef.current(snapshot),
       startLevel,
-    );
+      startCheckpoint,
+    });
     onReadyRef.current?.(game);
     game.start();
 
@@ -39,7 +46,7 @@ export default function GameCanvas({ onSnapshot, onReady, startLevel = 0 }: Prop
       window.removeEventListener("resize", onResize);
       game.stop();
     };
-  }, [startLevel]);
+  }, [startLevel, startCheckpoint]);
 
   return <canvas ref={canvasRef} className="block bg-navy" />;
 }

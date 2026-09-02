@@ -30,6 +30,8 @@ export const CHARACTER_COLORS = {
   bram: "#FFB020",
 } as const;
 
+export type CharacterId = keyof typeof CHARACTER_COLORS;
+
 /** Tile grid. Levels are always 16 rows tall. */
 export const TILE = 32;
 export const LEVEL_ROWS = 16;
