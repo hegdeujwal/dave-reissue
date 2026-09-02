@@ -1,6 +1,6 @@
 import { COLORS, COMBAT, TILE, VIEW_H, VIEW_W } from "./theme";
 import type { Player } from "./physics";
-import { SOLID, type Level } from "./levels";
+import { SOLID, SPIKE, type Level } from "./levels";
 
 /**
  * Size the backing store to the device pixel ratio so the flat vector shapes
@@ -97,9 +97,16 @@ export function drawTiles(
 
   for (let row = 0; row < level.rows; row++) {
     for (let col = first; col <= last; col++) {
-      if (level.at(col, row) !== SOLID) continue;
+      const tile = level.at(col, row);
+      if (tile !== SOLID && tile !== SPIKE) continue;
       const x = Math.round(col * TILE - camX);
       const y = row * TILE;
+
+      if (tile === SPIKE) {
+        drawSpike(ctx, x, y);
+        continue;
+      }
+
       ctx.fillStyle = COLORS.wall;
       ctx.fillRect(x, y, TILE, TILE);
       if (level.at(col, row - 1) !== SOLID) {
@@ -108,4 +115,19 @@ export function drawTiles(
       }
     }
   }
+}
+
+/** Spikes: three flat pink teeth, base on the floor of the tile. */
+export function drawSpike(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  const teeth = 3;
+  const w = TILE / teeth;
+  ctx.fillStyle = COLORS.pink;
+  ctx.beginPath();
+  for (let i = 0; i < teeth; i++) {
+    const left = x + i * w;
+    ctx.moveTo(left, y + TILE);
+    ctx.lineTo(left + w / 2, y + TILE * 0.26);
+    ctx.lineTo(left + w, y + TILE);
+  }
+  ctx.fill();
 }
