@@ -81,6 +81,13 @@ export function drawBackdrop(
   camX: number,
   clock: number,
 ) {
+  // Canvas state survives between frames, so reset the bits the figures and
+  // effects change before anything else is drawn.
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+  ctx.lineCap = "butt";
+  ctx.lineJoin = "miter";
+
   const sky = ctx.createLinearGradient(0, 0, 0, VIEW_H);
   sky.addColorStop(0, COLORS.skyTop);
   sky.addColorStop(1, COLORS.skyBottom);
@@ -807,16 +814,18 @@ export function drawHitFlash(ctx: CanvasRenderingContext2D, strength: number) {
 
 /** Corner darkening, so the middle of the screen reads as the focus. */
 export function drawVignette(ctx: CanvasRenderingContext2D) {
+  // Kept gentle: enemies come in from the edges, so the corners still have
+  // to be readable.
   const g = ctx.createRadialGradient(
     VIEW_W / 2,
     VIEW_H / 2,
-    VIEW_H * 0.35,
+    VIEW_H * 0.5,
     VIEW_W / 2,
     VIEW_H / 2,
-    VIEW_W * 0.72,
+    VIEW_W * 0.75,
   );
   g.addColorStop(0, "rgba(0,0,0,0)");
-  g.addColorStop(1, "rgba(0,0,0,0.5)");
+  g.addColorStop(1, "rgba(0,0,0,0.42)");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
 }
