@@ -195,6 +195,8 @@ export const WEAPON = {
   life: 1.1,
   /** How far the muzzle sits from the middle of the player. */
   muzzle: 14,
+  /** Backwards nudge on the player each shot, so firing has weight. */
+  kick: 30,
 } as const;
 
 /** The jetpack. Fuel refills on the ground, so a shaft can always be retried. */

@@ -4,6 +4,7 @@ import {
   JETPACK,
   JUICE,
   TILE,
+  TURRET,
   VIEW_H,
   VIEW_W,
   type Character,
@@ -490,7 +491,7 @@ export function drawTurret(
   ctx.fillRect(barrelX, y + 12, 12, 7);
 
   // Eye, brightening as the shot charges.
-  const charge = 1 - Math.min(1, turret.cooldown / 1.8);
+  const charge = 1 - Math.min(1, turret.cooldown / TURRET.interval);
   glow(ctx, COLORS.pink, 6 + charge * 12);
   ctx.fillStyle = COLORS.pink;
   ctx.globalAlpha = 0.5 + charge * 0.5;

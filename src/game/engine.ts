@@ -504,7 +504,7 @@ export class Game {
       ),
     );
     // A little kick, so shooting has weight.
-    p.vx -= p.facing * 30;
+    p.vx -= p.facing * WEAPON.kick;
     this.shake = Math.max(this.shake, 2.5);
     this.spawnParticles(
       p.x + p.w / 2 + WEAPON.muzzle * p.facing,
@@ -829,7 +829,13 @@ export class Game {
     }
 
     const enemy = this.enemies.find((e) => overlaps(p, e));
-    if (enemy) this.damage(enemy.x + enemy.w / 2);
+    if (enemy) {
+      this.damage(enemy.x + enemy.w / 2);
+      return;
+    }
+
+    const turret = this.turrets.find((t) => overlaps(p, t));
+    if (turret) this.damage(turret.x + turret.w / 2);
   }
 
   private damage(fromX: number) {
@@ -1030,7 +1036,9 @@ export class Game {
       snapshot.hasGun,
       snapshot.ammo,
       snapshot.hasJetpack,
-      snapshot.fuel.toFixed(2),
+      // One decimal is exactly the resolution of the HUD fuel bar, which
+      // keeps a long burn from re-rendering React on every frame.
+      snapshot.fuel.toFixed(1),
       snapshot.time.toFixed(1),
       snapshot.toast ?? "",
       snapshot.hint ?? "",
