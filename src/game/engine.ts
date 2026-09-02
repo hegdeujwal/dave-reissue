@@ -1,6 +1,6 @@
 import {
   CAMERA,
-  CHARACTER_COLORS,
+  CHARACTERS,
   COMBAT,
   FIXED_DT,
   MAX_FRAME_DT,
@@ -8,6 +8,7 @@ import {
   TILE,
   TOAST_TIME,
   VIEW_W,
+  type CharacterId,
 } from "./theme";
 import {
   drawBackdrop,
@@ -44,11 +45,14 @@ import {
   type Stats,
 } from "./physics";
 
-const BASE_STATS: Stats = {
-  maxSpeed: PHYSICS.maxSpeed,
-  jumpVelocity: PHYSICS.jumpVelocity,
-  hearts: COMBAT.hearts,
-};
+function statsFor(id: CharacterId): Stats {
+  const character = CHARACTERS[id];
+  return {
+    maxSpeed: character.maxSpeed,
+    jumpVelocity: character.jumpVelocity,
+    hearts: character.hearts,
+  };
+}
 
 export type Mode = "playing" | "paused" | "levelComplete";
 
@@ -58,6 +62,7 @@ export type Snapshot = {
   levelIndex: number;
   levelName: string;
   levelCount: number;
+  characterId: CharacterId;
   hearts: number;
   maxHearts: number;
   gems: number;
@@ -73,6 +78,7 @@ export type GameOptions = {
   /** Where a Continue drops the player back in. */
   startLevel?: number;
   startCheckpoint?: Point | null;
+  character?: CharacterId;
 };
 
 /**
@@ -94,7 +100,8 @@ export class Game {
   private levelIndex = 0;
   private level: Level;
   private readonly player: Player;
-  private readonly stats: Stats = BASE_STATS;
+  private characterId: CharacterId = "dave";
+  private stats: Stats = statsFor("dave");
   private readonly input = new Input();
   private mode: Mode = "playing";
   private elapsed = 0;
@@ -126,6 +133,8 @@ export class Game {
     private readonly options: GameOptions,
   ) {
     this.ctx = setupCanvas(canvas);
+    this.characterId = options.character ?? "dave";
+    this.stats = statsFor(this.characterId);
     this.levelIndex = clamp(options.startLevel ?? 0, 0, LEVELS.length - 1);
     this.level = new Level(LEVELS[this.levelIndex]);
     this.player = createPlayer(this.level.spawn.x, this.level.spawn.y);
@@ -194,6 +203,18 @@ export class Game {
     p.sx = 1;
     p.sy = 1;
     this.snapCamera();
+  }
+
+  /**
+   * Swapping character mid-run keeps the player where they are and never
+   * hands out free hearts.
+   */
+  setCharacter(id: CharacterId) {
+    this.characterId = id;
+    this.stats = statsFor(id);
+    this.hearts = Math.min(this.hearts, this.stats.hearts);
+    patchSave({ character: id });
+    this.publish(true);
   }
 
   setPaused(paused: boolean) {
@@ -480,7 +501,7 @@ export class Game {
       this.player,
       alpha,
       camX,
-      CHARACTER_COLORS.dave,
+      CHARACTERS[this.characterId].color,
       this.invuln > 0,
       this.clock,
     );
@@ -492,6 +513,7 @@ export class Game {
       levelIndex: this.levelIndex,
       levelName: this.level.data.name,
       levelCount: LEVELS.length,
+      characterId: this.characterId,
       hearts: this.hearts,
       maxHearts: this.stats.hearts,
       gems: this.gemsTaken.filter(Boolean).length,
@@ -508,6 +530,7 @@ export class Game {
     const signature = [
       snapshot.mode,
       snapshot.levelIndex,
+      snapshot.characterId,
       snapshot.hearts,
       snapshot.gems,
       snapshot.hasKey,

@@ -1,17 +1,20 @@
 "use client";
 
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useCallback, useRef, useState, useSyncExternalStore } from "react";
+import CharacterStrip from "@/components/CharacterStrip";
 import GameCanvas from "@/components/GameCanvas";
 import InkButton from "@/components/InkButton";
-import type { Snapshot } from "@/game/engine";
+import type { Game, Snapshot } from "@/game/engine";
 import type { Point } from "@/game/levels";
 import {
   hasProgress,
   loadSave,
+  patchSave,
   resetSave,
   serverSave,
   subscribeSave,
 } from "@/game/save";
+import type { CharacterId } from "@/game/theme";
 
 type Screen = "menu" | "game";
 
@@ -20,6 +23,7 @@ export default function Home() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [startLevel, setStartLevel] = useState(0);
   const [startCheckpoint, setStartCheckpoint] = useState<Point | null>(null);
+  const gameRef = useRef<Game | null>(null);
 
   // localStorage only exists in the browser, so the server renders the empty
   // save and the client swaps in the real one after hydration.
@@ -43,6 +47,11 @@ export default function Home() {
     setScreen("game");
   }, []);
 
+  const chooseCharacter = useCallback((id: CharacterId) => {
+    patchSave({ character: id });
+    gameRef.current?.setCharacter(id);
+  }, []);
+
   if (screen === "menu") {
     return (
       <main className="flex min-h-screen flex-col justify-center gap-8 px-16">
@@ -62,6 +71,7 @@ export default function Home() {
             Reset progress
           </InkButton>
         </div>
+        <CharacterStrip value={save.character} onChange={chooseCharacter} />
       </main>
     );
   }
@@ -71,8 +81,12 @@ export default function Home() {
       <div className="ink border-2 border-bone">
         <GameCanvas
           onSnapshot={setSnapshot}
+          onReady={(game) => {
+            gameRef.current = game;
+          }}
           startLevel={startLevel}
           startCheckpoint={startCheckpoint}
+          character={save.character}
         />
       </div>
       <p className="text-sm text-dim">

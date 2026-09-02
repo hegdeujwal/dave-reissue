@@ -32,6 +32,17 @@ export const CHARACTER_COLORS = {
 
 export type CharacterId = keyof typeof CHARACTER_COLORS;
 
+export type Character = {
+  id: CharacterId;
+  name: string;
+  color: string;
+  hearts: number;
+  maxSpeed: number;
+  jumpVelocity: number;
+  /** One line for the character strip. */
+  note: string;
+};
+
 /** Tile grid. Levels are always 16 rows tall. */
 export const TILE = 32;
 export const LEVEL_ROWS = 16;
@@ -49,6 +60,9 @@ export const FIXED_DT = 1 / 120;
 /** Never advance more than this much wall-clock time in one frame. */
 export const MAX_FRAME_DT = 0.25;
 
+/** Starting hearts for the two characters that do not change it. */
+export const COMBAT_HEARTS = 3;
+
 export const PHYSICS = {
   gravity: 2200,
   accel: 3000,
@@ -64,6 +78,40 @@ export const PHYSICS = {
   jumpCut: 0.4,
 } as const;
 
+/**
+ * The three playable characters. Dave is the baseline, the other two trade
+ * one number for another rather than being strictly better.
+ */
+export const CHARACTERS: Record<CharacterId, Character> = {
+  dave: {
+    id: "dave",
+    name: "Dave",
+    color: CHARACTER_COLORS.dave,
+    hearts: COMBAT_HEARTS,
+    maxSpeed: PHYSICS.maxSpeed,
+    jumpVelocity: PHYSICS.jumpVelocity,
+    note: "3 hearts. The baseline.",
+  },
+  nyx: {
+    id: "nyx",
+    name: "Nyx",
+    color: CHARACTER_COLORS.nyx,
+    hearts: COMBAT_HEARTS,
+    maxSpeed: 320,
+    jumpVelocity: -560,
+    note: "3 hearts. Faster, jumps lower.",
+  },
+  bram: {
+    id: "bram",
+    name: "Bram",
+    color: CHARACTER_COLORS.bram,
+    hearts: 4,
+    maxSpeed: 210,
+    jumpVelocity: -660,
+    note: "4 hearts. Slower, jumps higher.",
+  },
+};
+
 /** Camera. Exponential lerp toward the player, clamped to level bounds. */
 export const CAMERA = {
   /** Higher follows harder. Applied as 1 - e^(-k * dt) so it is dt independent. */
@@ -74,7 +122,7 @@ export const CAMERA = {
 
 /** Health and damage. */
 export const COMBAT = {
-  hearts: 3,
+  hearts: COMBAT_HEARTS,
   invulnTime: 1.2,
   knockbackX: 240,
   knockbackY: -320,
