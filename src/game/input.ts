@@ -1,4 +1,11 @@
-export type Binding = "left" | "right" | "jump" | "pause" | "restart";
+export type Binding =
+  | "left"
+  | "right"
+  | "jump"
+  | "shoot"
+  | "jet"
+  | "pause"
+  | "restart";
 
 /**
  * Every key the game listens to, keyed by `event.code` so the bindings do not
@@ -13,6 +20,12 @@ export const BINDINGS: Record<string, Binding> = {
   Space: "jump",
   KeyW: "jump",
   ArrowUp: "jump",
+  KeyJ: "shoot",
+  ControlLeft: "shoot",
+  ControlRight: "shoot",
+  ShiftLeft: "jet",
+  ShiftRight: "jet",
+  KeyK: "jet",
   Escape: "pause",
   KeyR: "restart",
 };
@@ -106,9 +119,11 @@ export class Input {
 }
 
 /** Rows for the Controls panel, so the UI and the bindings cannot drift apart. */
-export const CONTROL_ROWS: { action: string; keys: string }[] = [
+export const CONTROL_ROWS: { action: string; keys: string; note?: string }[] = [
   { action: "Move", keys: "A / D  or  ← / →" },
   { action: "Jump", keys: "Space,  W  or  ↑" },
+  { action: "Shoot", keys: "J  or  Ctrl", note: "Needs the gun" },
+  { action: "Jetpack", keys: "Shift  or  K", note: "Hold to fly" },
   { action: "Pause", keys: "Esc" },
   { action: "Restart level", keys: "R" },
 ];

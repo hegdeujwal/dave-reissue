@@ -1,4 +1,12 @@
-import { ENEMY, JUICE, PHYSICS, PLAYER_H, PLAYER_W, TILE } from "./theme";
+import {
+  ENEMY,
+  JETPACK,
+  JUICE,
+  PHYSICS,
+  PLAYER_H,
+  PLAYER_W,
+  TILE,
+} from "./theme";
 
 /** What the player is asking for this step. Comes from input, never from keys. */
 export type Intent = {
@@ -255,4 +263,56 @@ export function stepEnemy(e: Enemy, isSolid: SolidFn, dt: number) {
     return;
   }
   e.x = next;
+}
+
+/** A shot in flight. Player bullets and turret bolts use the same struct. */
+export type Bullet = {
+  x: number;
+  y: number;
+  px: number;
+  py: number;
+  w: number;
+  h: number;
+  vx: number;
+  life: number;
+  /** Player bullets hurt enemies, turret bolts hurt the player. */
+  friendly: boolean;
+};
+
+export function createBullet(
+  x: number,
+  y: number,
+  dir: 1 | -1,
+  speed: number,
+  w: number,
+  h: number,
+  life: number,
+  friendly: boolean,
+): Bullet {
+  const left = x - w / 2;
+  const top = y - h / 2;
+  return { x: left, y: top, px: left, py: top, w, h, vx: dir * speed, life, friendly };
+}
+
+export function stepBullet(b: Bullet, dt: number) {
+  b.x += b.vx * dt;
+  b.life -= dt;
+}
+
+/**
+ * Jetpack thrust, applied after gravity so it fights it directly. Returns the
+ * fuel left. Clearing `rising` stops the variable-jump cut from killing the
+ * lift the moment the jump key comes up.
+ */
+export function stepJetpack(
+  p: Player,
+  thrusting: boolean,
+  fuel: number,
+  dt: number,
+) {
+  if (!thrusting || fuel <= 0) return fuel;
+  p.vy = Math.max(p.vy - JETPACK.thrust * dt, -JETPACK.maxRise);
+  p.rising = false;
+  p.grounded = false;
+  return Math.max(0, fuel - JETPACK.burn * dt);
 }

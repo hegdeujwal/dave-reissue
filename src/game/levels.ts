@@ -15,6 +15,12 @@ export const DOOR = "D";
 export const CHECKPOINT = "C";
 export const ENEMY = "e";
 export const SPAWN = "P";
+/** Gear and the obstacles that make it necessary. */
+export const GUN = "g";
+export const JETPACK_PICKUP = "j";
+export const FUEL = "f";
+export const BREAKABLE = "B";
+export const TURRET_TILE = "T";
 
 /**
  * A tutorial hint. It fires while the player is inside the column range,
@@ -163,6 +169,11 @@ export class Level {
   readonly gems: Cell[] = [];
   readonly checkpoints: Cell[] = [];
   readonly enemies: Cell[] = [];
+  readonly guns: Cell[] = [];
+  readonly jetpacks: Cell[] = [];
+  readonly fuels: Cell[] = [];
+  readonly breakables: Cell[] = [];
+  readonly turrets: Cell[] = [];
   readonly key: Cell | null = null;
   readonly door: Cell | null = null;
   private readonly cells: string[];
@@ -190,6 +201,21 @@ export class Level {
           case ENEMY:
             this.enemies.push({ col, row });
             break;
+          case GUN:
+            this.guns.push({ col, row });
+            break;
+          case JETPACK_PICKUP:
+            this.jetpacks.push({ col, row });
+            break;
+          case FUEL:
+            this.fuels.push({ col, row });
+            break;
+          case BREAKABLE:
+            this.breakables.push({ col, row });
+            break;
+          case TURRET_TILE:
+            this.turrets.push({ col, row });
+            break;
           case KEY:
             this.key = { col, row };
             break;
@@ -206,10 +232,14 @@ export class Level {
     return this.cells[row][col];
   }
 
-  /** Off the left and right edges is solid, so the player cannot leave the map. */
+  /**
+   * Off the left and right edges is solid, so the player cannot leave the map.
+   * Crates count as solid here; the engine overrides them once they are shot.
+   */
   isSolid = (col: number, row: number): boolean => {
     if (col < 0 || col >= this.cols) return true;
-    return this.at(col, row) === SOLID;
+    const tile = this.at(col, row);
+    return tile === SOLID || tile === BREAKABLE;
   };
 }
 

@@ -1,49 +1,83 @@
 import {
   CAMERA,
   CHARACTERS,
+  COLORS,
   COMBAT,
   FIXED_DT,
+  JETPACK,
   MAX_FRAME_DT,
   PHYSICS,
+  SHAKE,
   TILE,
   TOAST_TIME,
+  TURRET,
   VIEW_W,
+  WEAPON,
   type CharacterId,
 } from "./theme";
 import {
   drawBackdrop,
+  drawBullet,
   drawCheckpoint,
   drawDoor,
   drawEnemy,
+  drawFuel,
+  drawFuelPip,
   drawGem,
+  drawGunPickup,
+  drawHitFlash,
+  drawJetpackPickup,
   drawKey,
+  drawParticles,
   drawPlayer,
   drawTiles,
+  drawTurret,
+  drawVignette,
   setupCanvas,
 } from "./render";
-import { LEVELS, Level, SPIKE, tileBox, tileToBox, type Point } from "./levels";
+import {
+  BREAKABLE,
+  LEVELS,
+  Level,
+  SPIKE,
+  tileBox,
+  tileToBox,
+  type Cell,
+  type Point,
+} from "./levels";
 import { Input } from "./input";
 import { loadSave, patchSave } from "./save";
 import {
   approach,
   clamp,
+  createBullet,
   createEnemy,
   createPlayer,
   landSquash,
   overlaps,
   resolveX,
   resolveY,
+  stepBullet,
   stepCoyote,
   stepEnemy,
   stepGravity,
   stepHorizontal,
+  stepJetpack,
   stepJump,
   stepSquash,
+  type Bullet,
   type Enemy,
   type Intent,
   type Player,
   type Stats,
 } from "./physics";
+
+/** Particle palettes, kept next to the effects that use them. */
+const COLORS_FLAME = [COLORS.flameHot, COLORS.flame, COLORS.orange];
+const CRATE_DEBRIS = [COLORS.crateLight, COLORS.crate, COLORS.crateDark];
+const DUST = [COLORS.dim, COLORS.wallEdge];
+const SPARKS = [COLORS.flameHot, COLORS.steel, COLORS.ink];
+const EXPLOSION = [COLORS.flameHot, COLORS.flame, COLORS.pink, COLORS.ink];
 
 function statsFor(id: CharacterId): Stats {
   const character = CHARACTERS[id];
@@ -55,6 +89,31 @@ function statsFor(id: CharacterId): Stats {
 }
 
 export type Mode = "playing" | "paused" | "levelComplete" | "runComplete";
+
+/** A wall turret. Stationary, fires along its row, takes two hits. */
+export type Turret = {
+  cell: Cell;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  dir: 1 | -1;
+  cooldown: number;
+  hp: number;
+};
+
+/** Purely cosmetic debris. Sparks, dust, flame and gem shards. */
+export type Particle = {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  size: number;
+  color: string;
+  gravity: number;
+};
 
 /** What the React layer needs in order to draw the HUD and the menus. */
 export type Snapshot = {
@@ -68,6 +127,12 @@ export type Snapshot = {
   gems: number;
   gemsTotal: number;
   hasKey: boolean;
+  hasGun: boolean;
+  ammo: number;
+  maxAmmo: number;
+  hasJetpack: boolean;
+  /** Fuel left, 0 to 1. */
+  fuel: number;
   time: number;
   /** Short-lived message such as "Checkpoint saved". */
   toast: string | null;
@@ -114,7 +179,26 @@ export class Game {
   /** Per-level run state. */
   private gemsTaken: boolean[] = [];
   private enemies: Enemy[] = [];
+  private bullets: Bullet[] = [];
+  private turrets: Turret[] = [];
+  private particles: Particle[] = [];
+  /** Crates that have been shot out, keyed by row * cols + col. */
+  private broken = new Set<number>();
+  /** Countdown before each spent fuel canister comes back. */
+  private fuelTimers: number[] = [];
   private hasKey = false;
+  private gunTaken = false;
+  private jetpackTaken = false;
+  private hasGun = false;
+  private hasJetpack = false;
+  private ammo = WEAPON.maxAmmo;
+  private reloadTimer = 0;
+  private shotTimer = 0;
+  private fuel = 0;
+  /** True on the steps the pack is actually firing, for the renderer. */
+  private thrusting = false;
+  private shake = 0;
+  private hitFlash = 0;
   /** Index of the checkpoint the player has touched, -1 for none. */
   private activeCheckpoint = -1;
   private checkpoint: Point | null = null;
@@ -130,6 +214,8 @@ export class Game {
     jumpHeld: false,
     jumpBuffer: 0,
   };
+  private shootHeld = false;
+  private jetHeld = false;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -159,6 +245,21 @@ export class Game {
     this.raf = 0;
   }
 
+  /**
+   * Collision against the level, with crates removed once they are shot out.
+   * Everything that moves uses this rather than Level.isSolid.
+   */
+  private readonly solid = (col: number, row: number) => {
+    if (col < 0 || col >= this.level.cols) return true;
+    const tile = this.level.at(col, row);
+    if (tile === BREAKABLE) return !this.broken.has(this.cellKey(col, row));
+    return tile === "#";
+  };
+
+  private cellKey(col: number, row: number) {
+    return row * this.level.cols + col;
+  }
+
   /** Re-measure after a device pixel ratio change. */
   resize() {
     setupCanvas(this.canvas);
@@ -169,7 +270,32 @@ export class Game {
     this.level = new Level(LEVELS[this.levelIndex]);
     this.gemsTaken = this.level.gems.map(() => false);
     this.enemies = this.level.enemies.map((c) => createEnemy(c.col, c.row));
+    this.turrets = this.level.turrets.map((cell) => ({
+      cell,
+      x: cell.col * TILE + (TILE - TURRET.w) / 2,
+      y: (cell.row + 1) * TILE - TURRET.h,
+      w: TURRET.w,
+      h: TURRET.h,
+      dir: 1 as 1 | -1,
+      cooldown: TURRET.interval * 0.5,
+      hp: 2,
+    }));
+    this.bullets = [];
+    this.particles = [];
+    this.broken.clear();
+    this.fuelTimers = this.level.fuels.map(() => 0);
     this.hasKey = false;
+    this.gunTaken = false;
+    this.jetpackTaken = false;
+    this.hasGun = false;
+    this.hasJetpack = false;
+    this.ammo = WEAPON.maxAmmo;
+    this.reloadTimer = 0;
+    this.shotTimer = 0;
+    this.fuel = 0;
+    this.thrusting = false;
+    this.shake = 0;
+    this.hitFlash = 0;
     this.activeCheckpoint = -1;
     this.checkpoint = checkpoint;
     this.toast = null;
@@ -231,6 +357,8 @@ export class Game {
     this.intent.left = this.input.isDown("left");
     this.intent.right = this.input.isDown("right");
     this.intent.jumpHeld = this.input.isDown("jump");
+    this.shootHeld = this.input.isDown("shoot");
+    this.jetHeld = this.input.isDown("jet");
     if (this.input.consumeJumpPress()) {
       this.intent.jumpBuffer = PHYSICS.jumpBuffer;
     }
@@ -275,6 +403,10 @@ export class Game {
       e.px = e.x;
       e.py = e.y;
     }
+    for (const b of this.bullets) {
+      b.px = b.x;
+      b.py = b.y;
+    }
   }
 
   private fixedUpdate(dt: number) {
@@ -284,12 +416,24 @@ export class Game {
     stepJump(p, this.intent, this.stats);
     stepGravity(p, dt);
 
+    this.thrusting = this.hasJetpack && this.jetHeld && this.fuel > 0;
+    this.fuel = stepJetpack(p, this.thrusting, this.fuel, dt);
+    if (this.thrusting) this.emitThrust(p);
+
     const wasGrounded = p.grounded;
     p.x += p.vx * dt;
-    resolveX(p, this.level.isSolid);
+    resolveX(p, this.solid);
     p.y += p.vy * dt;
-    resolveY(p, this.level.isSolid);
-    if (p.grounded && !wasGrounded) landSquash(p);
+    resolveY(p, this.solid);
+    if (p.grounded && !wasGrounded) {
+      landSquash(p);
+      if (p.vy === 0) this.shake = Math.max(this.shake, SHAKE.land);
+      this.emitDust(p);
+    }
+
+    if (p.grounded && !this.thrusting && this.hasJetpack) {
+      this.fuel = Math.min(JETPACK.maxFuel, this.fuel + JETPACK.recharge * dt);
+    }
 
     stepCoyote(p, dt);
     stepSquash(p, dt);
@@ -301,12 +445,259 @@ export class Game {
     // A jump pressed just before touchdown stays alive until the player lands.
     this.intent.jumpBuffer = Math.max(0, this.intent.jumpBuffer - dt);
 
-    for (const enemy of this.enemies) stepEnemy(enemy, this.level.isSolid, dt);
+    for (const enemy of this.enemies) stepEnemy(enemy, this.solid, dt);
+
+    this.stepWeapon(dt);
+    this.stepBullets(dt);
+    this.stepTurrets(dt);
+    this.stepParticles(dt);
+    for (let i = 0; i < this.fuelTimers.length; i++) {
+      if (this.fuelTimers[i] > 0) {
+        this.fuelTimers[i] = Math.max(0, this.fuelTimers[i] - dt);
+      }
+    }
+    this.shake = Math.max(0, this.shake - SHAKE.decay * dt * this.shake);
+    this.hitFlash = Math.max(0, this.hitFlash - dt * 2.2);
 
     this.collectPickups();
     this.checkHazards();
     this.updateHint();
     this.updateCamera(dt);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* The gun                                                             */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * Ammo is capped but trickles back on its own, so wasting every round on a
+   * crate can slow you down but can never make a level unwinnable.
+   */
+  private stepWeapon(dt: number) {
+    this.shotTimer = Math.max(0, this.shotTimer - dt);
+
+    if (this.hasGun && this.ammo < WEAPON.maxAmmo) {
+      this.reloadTimer += dt;
+      if (this.reloadTimer >= WEAPON.reload) {
+        this.reloadTimer = 0;
+        this.ammo += 1;
+      }
+    }
+
+    if (!this.hasGun || !this.shootHeld || this.shotTimer > 0 || this.ammo <= 0) {
+      return;
+    }
+
+    const p = this.player;
+    this.ammo -= 1;
+    this.shotTimer = WEAPON.cooldown;
+    this.bullets.push(
+      createBullet(
+        p.x + p.w / 2 + WEAPON.muzzle * p.facing,
+        p.y + p.h * 0.42,
+        p.facing,
+        WEAPON.bulletSpeed,
+        WEAPON.bulletW,
+        WEAPON.bulletH,
+        WEAPON.life,
+        true,
+      ),
+    );
+    // A little kick, so shooting has weight.
+    p.vx -= p.facing * 30;
+    this.shake = Math.max(this.shake, 2.5);
+    this.spawnParticles(
+      p.x + p.w / 2 + WEAPON.muzzle * p.facing,
+      p.y + p.h * 0.42,
+      4,
+      COLORS_FLAME,
+      { spread: 70, speed: 120, life: 0.12, size: 3, gravity: 0 },
+    );
+  }
+
+  private stepBullets(dt: number) {
+    for (let i = this.bullets.length - 1; i >= 0; i--) {
+      const b = this.bullets[i];
+      b.px = b.x;
+      b.py = b.y;
+      stepBullet(b, dt);
+
+      let spent = b.life <= 0;
+
+      if (!spent) {
+        const nose = b.vx > 0 ? b.x + b.w : b.x;
+        const col = Math.floor(nose / TILE);
+        const row = Math.floor((b.y + b.h / 2) / TILE);
+        const tile = this.level.at(col, row);
+
+        if (tile === BREAKABLE && !this.broken.has(this.cellKey(col, row))) {
+          if (b.friendly) {
+            this.broken.add(this.cellKey(col, row));
+            this.shake = Math.max(this.shake, SHAKE.explosion);
+            this.spawnParticles(
+              col * TILE + TILE / 2,
+              row * TILE + TILE / 2,
+              14,
+              CRATE_DEBRIS,
+              { spread: 360, speed: 190, life: 0.5, size: 4, gravity: 900 },
+            );
+          }
+          spent = true;
+        } else if (this.solid(col, row)) {
+          this.sparks(nose, b.y + b.h / 2);
+          spent = true;
+        }
+      }
+
+      if (!spent && b.friendly) {
+        const hitIndex = this.enemies.findIndex((e) => overlaps(b, e));
+        if (hitIndex >= 0) {
+          const enemy = this.enemies[hitIndex];
+          this.enemies.splice(hitIndex, 1);
+          this.explode(enemy.x + enemy.w / 2, enemy.y + enemy.h / 2);
+          spent = true;
+        }
+        const turret = this.turrets.find((t) => overlaps(b, t));
+        if (!spent && turret) {
+          turret.hp -= 1;
+          this.sparks(b.x, b.y + b.h / 2);
+          if (turret.hp <= 0) {
+            this.turrets = this.turrets.filter((t) => t !== turret);
+            this.explode(turret.x + turret.w / 2, turret.y + turret.h / 2);
+          }
+          spent = true;
+        }
+      }
+
+      if (!spent && !b.friendly && this.invuln <= 0 && overlaps(this.player, b)) {
+        this.damage(b.x + b.w / 2);
+        spent = true;
+      }
+
+      if (spent) this.bullets.splice(i, 1);
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Turrets                                                             */
+  /* ------------------------------------------------------------------ */
+
+  private stepTurrets(dt: number) {
+    const p = this.player;
+    for (const turret of this.turrets) {
+      turret.cooldown -= dt;
+      const dx = p.x + p.w / 2 - (turret.x + turret.w / 2);
+      const dy = p.y + p.h / 2 - (turret.y + turret.h / 2);
+      if (Math.abs(dy) < TILE) turret.dir = dx < 0 ? -1 : 1;
+      if (turret.cooldown > 0) continue;
+      if (Math.abs(dx) > TURRET.range || Math.abs(dy) > TILE) continue;
+
+      turret.cooldown = TURRET.interval;
+      this.bullets.push(
+        createBullet(
+          turret.x + turret.w / 2 + turret.dir * (turret.w / 2 + 4),
+          turret.y + turret.h * 0.4,
+          turret.dir,
+          TURRET.boltSpeed,
+          TURRET.boltW,
+          TURRET.boltH,
+          TURRET.life,
+          false,
+        ),
+      );
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Particles                                                           */
+  /* ------------------------------------------------------------------ */
+
+  private spawnParticles(
+    x: number,
+    y: number,
+    count: number,
+    palette: string[],
+    opts: {
+      spread: number;
+      speed: number;
+      life: number;
+      size: number;
+      gravity: number;
+      bias?: number;
+    },
+  ) {
+    if (this.particles.length > 400) return;
+    for (let i = 0; i < count; i++) {
+      const angle =
+        ((opts.bias ?? -90) + (Math.random() - 0.5) * opts.spread) *
+        (Math.PI / 180);
+      const speed = opts.speed * (0.45 + Math.random() * 0.75);
+      const life = opts.life * (0.6 + Math.random() * 0.7);
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life,
+        maxLife: life,
+        size: opts.size * (0.6 + Math.random() * 0.8),
+        color: palette[(Math.random() * palette.length) | 0],
+        gravity: opts.gravity,
+      });
+    }
+  }
+
+  private stepParticles(dt: number) {
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const q = this.particles[i];
+      q.vy += q.gravity * dt;
+      q.x += q.vx * dt;
+      q.y += q.vy * dt;
+      q.life -= dt;
+      if (q.life <= 0) this.particles.splice(i, 1);
+    }
+  }
+
+  private emitThrust(p: Player) {
+    this.spawnParticles(p.x + p.w / 2, p.y + p.h - 2, 2, COLORS_FLAME, {
+      spread: 46,
+      speed: 190,
+      life: 0.22,
+      size: 4,
+      gravity: 240,
+      bias: 90,
+    });
+  }
+
+  private emitDust(p: Player) {
+    this.spawnParticles(p.x + p.w / 2, p.y + p.h, 5, DUST, {
+      spread: 150,
+      speed: 90,
+      life: 0.26,
+      size: 3,
+      gravity: 200,
+    });
+  }
+
+  private sparks(x: number, y: number) {
+    this.spawnParticles(x, y, 5, SPARKS, {
+      spread: 200,
+      speed: 150,
+      life: 0.2,
+      size: 3,
+      gravity: 500,
+    });
+  }
+
+  private explode(x: number, y: number) {
+    this.shake = Math.max(this.shake, SHAKE.explosion);
+    this.spawnParticles(x, y, 16, EXPLOSION, {
+      spread: 360,
+      speed: 210,
+      life: 0.42,
+      size: 4,
+      gravity: 620,
+    });
   }
 
   /** Gems, the key, and the door that only opens once the key is held. */
@@ -319,8 +710,39 @@ export class Game {
     });
 
     if (this.level.key && !this.hasKey) {
-      if (overlaps(p, tileBox(this.level.key, 5))) this.hasKey = true;
+      if (overlaps(p, tileBox(this.level.key, 5))) {
+        this.hasKey = true;
+        this.showToast("Key");
+      }
     }
+
+    if (this.level.guns.length && !this.gunTaken) {
+      const cell = this.level.guns[0];
+      if (overlaps(p, tileBox(cell, 4))) {
+        this.gunTaken = true;
+        this.hasGun = true;
+        this.ammo = WEAPON.maxAmmo;
+        this.showToast("Gun. Shoot with J or Ctrl");
+      }
+    }
+
+    if (this.level.jetpacks.length && !this.jetpackTaken) {
+      const cell = this.level.jetpacks[0];
+      if (overlaps(p, tileBox(cell, 4))) {
+        this.jetpackTaken = true;
+        this.hasJetpack = true;
+        this.fuel = JETPACK.maxFuel;
+        this.showToast("Jetpack. Hold Shift or K");
+      }
+    }
+
+    this.level.fuels.forEach((cell, i) => {
+      if (this.fuelTimers[i] > 0) return;
+      if (!overlaps(p, tileBox(cell, 5))) return;
+      this.fuelTimers[i] = JETPACK.canisterRespawn;
+      this.fuel = JETPACK.maxFuel;
+      if (this.hasJetpack) this.showToast("Fuel");
+    });
 
     this.level.checkpoints.forEach((cell, i) => {
       if (this.activeCheckpoint === i) return;
@@ -413,6 +835,15 @@ export class Game {
   private damage(fromX: number) {
     const p = this.player;
     this.invuln = COMBAT.invulnTime;
+    this.shake = Math.max(this.shake, SHAKE.hit);
+    this.hitFlash = 1;
+    this.spawnParticles(p.x + p.w / 2, p.y + p.h / 2, 10, EXPLOSION, {
+      spread: 360,
+      speed: 180,
+      life: 0.3,
+      size: 3,
+      gravity: 500,
+    });
 
     const away = p.x + p.w / 2 < fromX ? -1 : 1;
     p.vx = away * COMBAT.knockbackX;
@@ -474,53 +905,93 @@ export class Game {
   private draw(alpha: number) {
     const camX = lerp(this.prevCamX, this.camX, alpha);
     const ctx = this.ctx;
+    const level = this.level;
 
-    drawBackdrop(ctx, camX);
-    drawTiles(ctx, this.level, camX);
+    ctx.save();
+    if (this.shake > 0.15) {
+      ctx.translate(
+        (Math.random() - 0.5) * this.shake,
+        (Math.random() - 0.5) * this.shake,
+      );
+    }
 
-    this.level.checkpoints.forEach((cell, i) => {
+    drawBackdrop(ctx, camX, this.clock);
+    drawTiles(ctx, level, camX, this.broken);
+
+    level.checkpoints.forEach((cell, i) => {
       drawCheckpoint(
         ctx,
         cell.col * TILE - camX,
         cell.row * TILE,
         this.activeCheckpoint === i,
+        this.clock,
       );
     });
 
-    this.level.gems.forEach((cell, i) => {
-      if (this.gemsTaken[i]) return;
-      drawGem(ctx, cell.col * TILE - camX, cell.row * TILE, this.clock);
-    });
-
-    if (this.level.key && !this.hasKey) {
-      drawKey(
+    if (level.door) {
+      drawDoor(
         ctx,
-        this.level.key.col * TILE - camX,
-        this.level.key.row * TILE,
+        level.door.col * TILE - camX,
+        level.door.row * TILE,
+        this.hasKey,
         this.clock,
       );
     }
 
-    if (this.level.door) {
-      drawDoor(
-        ctx,
-        this.level.door.col * TILE - camX,
-        this.level.door.row * TILE,
-        this.hasKey,
-      );
+    level.gems.forEach((cell, i) => {
+      if (this.gemsTaken[i]) return;
+      drawGem(ctx, cell.col * TILE - camX, cell.row * TILE, this.clock);
+    });
+
+    if (level.key && !this.hasKey) {
+      drawKey(ctx, level.key.col * TILE - camX, level.key.row * TILE, this.clock);
     }
 
-    for (const enemy of this.enemies) drawEnemy(ctx, enemy, alpha, camX);
+    if (!this.gunTaken) {
+      for (const cell of level.guns) {
+        drawGunPickup(ctx, cell.col * TILE - camX, cell.row * TILE, this.clock);
+      }
+    }
 
-    drawPlayer(
-      ctx,
-      this.player,
-      alpha,
-      camX,
-      CHARACTERS[this.characterId].color,
-      this.invuln > 0,
-      this.clock,
-    );
+    if (!this.jetpackTaken) {
+      for (const cell of level.jetpacks) {
+        drawJetpackPickup(ctx, cell.col * TILE - camX, cell.row * TILE, this.clock);
+      }
+    }
+
+    level.fuels.forEach((cell, i) => {
+      drawFuel(
+        ctx,
+        cell.col * TILE - camX,
+        cell.row * TILE,
+        this.clock,
+        this.fuelTimers[i] <= 0,
+      );
+    });
+
+    for (const turret of this.turrets) drawTurret(ctx, turret, camX, this.clock);
+    for (const enemy of this.enemies) drawEnemy(ctx, enemy, alpha, camX, this.clock);
+    for (const bullet of this.bullets) drawBullet(ctx, bullet, alpha, camX);
+
+    drawPlayer(ctx, this.player, alpha, camX, {
+      character: CHARACTERS[this.characterId],
+      hasGun: this.hasGun,
+      hasJetpack: this.hasJetpack,
+      thrusting: this.thrusting,
+      sinceShot: WEAPON.cooldown - this.shotTimer,
+      invulnerable: this.invuln > 0,
+      maxSpeed: this.stats.maxSpeed,
+    }, this.clock);
+
+    if (this.hasJetpack && !this.player.grounded) {
+      drawFuelPip(ctx, this.player, alpha, camX, this.fuel);
+    }
+
+    drawParticles(ctx, this.particles, camX);
+    ctx.restore();
+
+    drawVignette(ctx);
+    drawHitFlash(ctx, this.hitFlash);
   }
 
   private snapshot(): Snapshot {
@@ -535,6 +1006,11 @@ export class Game {
       gems: this.gemsTaken.filter(Boolean).length,
       gemsTotal: this.level.gems.length,
       hasKey: this.hasKey,
+      hasGun: this.hasGun,
+      ammo: this.ammo,
+      maxAmmo: WEAPON.maxAmmo,
+      hasJetpack: this.hasJetpack,
+      fuel: this.hasJetpack ? this.fuel / JETPACK.maxFuel : 0,
       time: this.elapsed,
       toast: this.toast,
       hint: this.hint,
@@ -551,6 +1027,10 @@ export class Game {
       snapshot.hearts,
       snapshot.gems,
       snapshot.hasKey,
+      snapshot.hasGun,
+      snapshot.ammo,
+      snapshot.hasJetpack,
+      snapshot.fuel.toFixed(2),
       snapshot.time.toFixed(1),
       snapshot.toast ?? "",
       snapshot.hint ?? "",
