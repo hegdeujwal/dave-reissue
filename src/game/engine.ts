@@ -55,6 +55,8 @@ export type Snapshot = {
   levelIndex: number;
   levelName: string;
   levelCount: number;
+  hearts: number;
+  maxHearts: number;
   gems: number;
   gemsTotal: number;
   hasKey: boolean;
@@ -88,6 +90,9 @@ export class Game {
   private readonly input = new Input();
   private mode: Mode = "playing";
   private elapsed = 0;
+  private hearts: number = COMBAT.hearts;
+  /** Seconds of flickering invulnerability left after taking a hit. */
+  private invuln = 0;
 
   /** Per-level run state. */
   private gemsTaken: boolean[] = [];
@@ -141,6 +146,8 @@ export class Game {
     this.gemsTaken = this.level.gems.map(() => false);
     this.enemies = this.level.enemies.map((c) => createEnemy(c.col, c.row));
     this.hasKey = false;
+    this.hearts = this.stats.hearts;
+    this.invuln = 0;
     this.elapsed = 0;
     this.mode = "playing";
     this.respawn();
@@ -246,6 +253,7 @@ export class Game {
 
     stepCoyote(p, dt);
     stepSquash(p, dt);
+    this.invuln = Math.max(0, this.invuln - dt);
     // A jump pressed just before touchdown stays alive until the player lands.
     this.intent.jumpBuffer = Math.max(0, this.intent.jumpBuffer - dt);
 
@@ -277,16 +285,57 @@ export class Game {
     }
   }
 
-  /** Spikes and enemies both cost the player a life on contact. */
+  /**
+   * Spikes and enemies cost one heart, never the whole run. A hit knocks the
+   * player back and grants 1.2s of flickering invulnerability. Hearts only
+   * run out into a respawn, and the respawn hands them all back.
+   */
   private checkHazards() {
     const p = this.player;
 
-    if (this.touchesSpike() || this.enemies.some((e) => overlaps(p, e))) {
+    if (p.y > this.level.heightPx + TILE * 2) {
+      this.loseHeart();
       this.respawn();
+      this.invuln = COMBAT.invulnTime;
+      return;
     }
+
+    if (this.invuln > 0) return;
+
+    const spikeX = this.spikeContactX();
+    if (spikeX !== null) {
+      this.damage(spikeX);
+      return;
+    }
+
+    const enemy = this.enemies.find((e) => overlaps(p, e));
+    if (enemy) this.damage(enemy.x + enemy.w / 2);
   }
 
-  private touchesSpike() {
+  private damage(fromX: number) {
+    const p = this.player;
+    this.invuln = COMBAT.invulnTime;
+
+    const away = p.x + p.w / 2 < fromX ? -1 : 1;
+    p.vx = away * COMBAT.knockbackX;
+    p.vy = COMBAT.knockbackY;
+    p.grounded = false;
+    p.coyote = 0;
+    p.rising = false;
+
+    if (this.loseHeart()) this.respawn();
+  }
+
+  /** Returns true when that was the last heart. */
+  private loseHeart() {
+    this.hearts -= 1;
+    if (this.hearts > 0) return false;
+    this.hearts = this.stats.hearts;
+    return true;
+  }
+
+  /** Centre x of the spike the player is standing in, or null. */
+  private spikeContactX(): number | null {
     const p = this.player;
     const c0 = Math.floor(p.x / TILE);
     const c1 = Math.floor((p.x + p.w - 1) / TILE);
@@ -296,10 +345,10 @@ export class Game {
     for (let row = r0; row <= r1; row++) {
       for (let col = c0; col <= c1; col++) {
         if (this.level.at(col, row) !== SPIKE) continue;
-        if (overlaps(p, tileBox({ col, row }, 6))) return true;
+        if (overlaps(p, tileBox({ col, row }, 6))) return col * TILE + TILE / 2;
       }
     }
-    return false;
+    return null;
   }
 
   /**
@@ -356,7 +405,15 @@ export class Game {
 
     for (const enemy of this.enemies) drawEnemy(ctx, enemy, alpha, camX);
 
-    drawPlayer(ctx, this.player, alpha, camX, CHARACTER_COLORS.dave, false, 0);
+    drawPlayer(
+      ctx,
+      this.player,
+      alpha,
+      camX,
+      CHARACTER_COLORS.dave,
+      this.invuln > 0,
+      this.clock,
+    );
   }
 
   private snapshot(): Snapshot {
@@ -365,6 +422,8 @@ export class Game {
       levelIndex: this.levelIndex,
       levelName: this.level.data.name,
       levelCount: LEVELS.length,
+      hearts: this.hearts,
+      maxHearts: this.stats.hearts,
       gems: this.gemsTaken.filter(Boolean).length,
       gemsTotal: this.level.gems.length,
       hasKey: this.hasKey,
@@ -378,6 +437,7 @@ export class Game {
     const signature = [
       snapshot.mode,
       snapshot.levelIndex,
+      snapshot.hearts,
       snapshot.gems,
       snapshot.hasKey,
       snapshot.time.toFixed(1),
