@@ -53,6 +53,13 @@ export default function Home() {
     setScreen("game");
   }, []);
 
+  const pickLevel = useCallback((index: number) => {
+    setStartLevel(index);
+    setStartCheckpoint(null);
+    setSnapshot(null);
+    setScreen("game");
+  }, []);
+
   const chooseCharacter = useCallback((id: CharacterId) => {
     patchSave({ character: id });
     gameRef.current?.setCharacter(id);
@@ -71,6 +78,7 @@ export default function Home() {
         onNewRun={startNewRun}
         onReset={() => resetSave()}
         onCharacter={chooseCharacter}
+        onPickLevel={pickLevel}
       />
     );
   }
@@ -83,16 +91,16 @@ export default function Home() {
       <div className="flex flex-col gap-3">
         <header className="flex items-baseline justify-between gap-8">
           <h1 className="font-display text-xl uppercase tracking-tight">
-            Dave: Reissue
+            <span className="text-orange">Dave:</span> Reissue
           </h1>
           <p className="text-xs uppercase tracking-widest text-dim">
             {snapshot
-              ? `Level ${snapshot.levelIndex + 1} of ${snapshot.levelCount} — ${snapshot.levelName}`
+              ? `${snapshot.levelName} — level ${snapshot.levelIndex + 1} of ${snapshot.levelCount}`
               : `${LEVELS.length} levels`}
           </p>
         </header>
 
-        <div className="relative ink border-2 border-bone">
+        <div className="relative border-2 border-bone shadow-[6px_6px_0_0_var(--color-orange)]">
           <GameCanvas
             onSnapshot={setSnapshot}
             onReady={(game) => {
@@ -106,19 +114,20 @@ export default function Home() {
           {snapshot ? <Hud snapshot={snapshot} /> : null}
 
           {snapshot?.hint && snapshot.mode === "playing" ? (
-            <p className="pointer-events-none absolute inset-x-0 bottom-6 mx-auto w-fit border-2 border-bone bg-navy px-4 py-2 text-center text-sm">
+            <p className="pointer-events-none absolute inset-x-0 bottom-6 mx-auto w-fit max-w-[80%] border-2 border-bone bg-navy/95 px-4 py-2 text-center text-sm shadow-[4px_4px_0_0_rgba(0,0,0,0.5)]">
               {snapshot.hint}
             </p>
           ) : null}
 
           {snapshot?.toast ? (
-            <p className="pointer-events-none absolute inset-x-0 top-20 mx-auto w-fit border-2 border-mint bg-navy px-4 py-2 font-display text-xs uppercase tracking-widest text-mint">
+            <p className="pointer-events-none absolute inset-x-0 top-24 mx-auto w-fit border-2 border-mint bg-navy/95 px-4 py-2 font-display text-xs uppercase tracking-widest text-mint shadow-[4px_4px_0_0_rgba(76,224,179,0.35)]">
               {snapshot.toast}
             </p>
           ) : null}
 
           {snapshot?.mode === "paused" ? (
             <PauseMenu
+              snapshot={snapshot}
               character={save.character}
               onResume={() => gameRef.current?.setPaused(false)}
               onRestart={() => gameRef.current?.restartLevel()}
@@ -137,9 +146,10 @@ export default function Home() {
           ) : null}
         </div>
 
-        <footer className="flex justify-between text-xs uppercase tracking-widest text-dim">
-          <span>Esc pauses</span>
-          <span>R restarts the level</span>
+        <footer className="flex flex-wrap justify-between gap-4 text-[11px] uppercase tracking-widest text-dim">
+          <span>Move A/D or arrows · Jump Space/W/↑</span>
+          <span>Shoot J/Ctrl · Jetpack Shift/K</span>
+          <span>Esc pause · R restart</span>
         </footer>
       </div>
     </main>

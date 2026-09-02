@@ -835,3 +835,58 @@ export function drawFuelPip(
   ctx.fillStyle = fuel > 0.25 ? COLORS.mint : COLORS.pink;
   ctx.fillRect(x - 12, y + 1, 24 * Math.max(0, fuel / JETPACK.maxFuel), 2);
 }
+
+/**
+ * Draw a character standing idle, for the menu cards. Reuses the in-game
+ * figure so the preview is always exactly what you get.
+ */
+export function drawPortrait(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  character: Character,
+  clock: number,
+  opts: { gun: boolean; jetpack: boolean },
+) {
+  ctx.clearRect(0, 0, w, h);
+  const scale = Math.min(w / 46, h / 44);
+
+  ctx.save();
+  ctx.translate(w / 2, h - 8 + Math.sin(clock * 2) * 1.5);
+  ctx.scale(scale, scale);
+
+  const figure: Player = {
+    x: -10,
+    y: -28,
+    px: -10,
+    py: -28,
+    vx: 0,
+    vy: 0,
+    w: 20,
+    h: 28,
+    grounded: true,
+    coyote: 0,
+    rising: false,
+    facing: 1,
+    sx: 1,
+    sy: 1,
+  };
+
+  drawPlayer(
+    ctx,
+    figure,
+    1,
+    0,
+    {
+      character,
+      hasGun: opts.gun,
+      hasJetpack: opts.jetpack,
+      thrusting: false,
+      sinceShot: 99,
+      invulnerable: false,
+      maxSpeed: character.maxSpeed,
+    },
+    clock,
+  );
+  ctx.restore();
+}
