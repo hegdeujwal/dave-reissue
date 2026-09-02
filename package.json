@@ -21,6 +21,7 @@
     "docx": "^9.7.1",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "puppeteer-core": "^25.9.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

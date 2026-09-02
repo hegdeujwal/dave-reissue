@@ -14,6 +14,7 @@ const {
   Document,
   Footer,
   HeadingLevel,
+  ImageRun,
   LevelFormat,
   PageBreak,
   PageNumber,
@@ -44,6 +45,9 @@ const BLACK = "000000";
 const WHITE = "FFFFFF";
 
 const BULLETS = "report-bullets";
+
+/** Where capture-screenshots.js leaves its output. */
+const SHOTS = path.join(__dirname, "screenshots");
 
 /** References are left aligned so a long URL does not stretch the line. */
 const REF = { alignment: AlignmentType.LEFT };
@@ -101,6 +105,45 @@ function blankLine() {
 
 function blankLines(count) {
   return Array.from({ length: count }, blankLine);
+}
+
+/** Width and height of a PNG, read straight out of its IHDR chunk. */
+function pngSize(buffer) {
+  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+}
+
+/** Widest and tallest an inserted screenshot may be, in pixels on the page. */
+const IMAGE_MAX_W = 580;
+const IMAGE_MAX_H = 380;
+
+/**
+ * A screenshot scaled to fit the text column, or, if the file has not been
+ * captured yet, blank space of about the same height to paste one into.
+ */
+function screenshot(file) {
+  const full = path.join(SHOTS, file);
+  if (!fs.existsSync(full)) return blankLines(7);
+
+  const data = fs.readFileSync(full);
+  const { width, height } = pngSize(data);
+  const scale = Math.min(IMAGE_MAX_W / width, IMAGE_MAX_H / height);
+
+  return [
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 160, after: 80, line: 240 },
+      children: [
+        new ImageRun({
+          type: "png",
+          data,
+          transformation: {
+            width: Math.round(width * scale),
+            height: Math.round(height * scale),
+          },
+        }),
+      ],
+    }),
+  ];
 }
 
 /** Every border on a table or cell: thin, solid, black. */
@@ -288,10 +331,10 @@ const MODULES = [
 ];
 
 const SCREENSHOTS = [
-  "Fig. 1: Main Menu",
-  "Fig. 2: Character Selection",
-  "Fig. 3: Gameplay with Heads-Up Display",
-  "Fig. 4: Level Complete Screen",
+  ["01-main-menu.png", "Fig. 1: Main Menu"],
+  ["02-character-select.png", "Fig. 2: Character Selection"],
+  ["03-gameplay-hud.png", "Fig. 3: Gameplay with Heads-Up Display"],
+  ["04-level-complete.png", "Fig. 4: Level Complete Screen"],
 ];
 
 const report = [
@@ -382,12 +425,14 @@ const report = [
   body(
     "The remake was completed and tested in current desktop browsers. All ten levels are playable from the main menu, either from the beginning of a new run or from the last checkpoint of a previous one. The simulation holds a steady frame rate, the camera follows the player without visible snapping, and the heads-up display reflects hearts, gems, ammunition and fuel accurately throughout play. Progress survives a reload of the page, and each of the nine limitations identified in the original game is addressed by a working feature of the remake. Selected screens of the completed application are shown below.",
   ),
+  // The screenshots start on a fresh page, so none of them is split.
+  new Paragraph({ children: [new PageBreak()] }),
   subHeading("9.1", "Screenshots"),
-  ...SCREENSHOTS.flatMap((caption) => [
-    ...blankLines(7),
+  ...SCREENSHOTS.flatMap(([file, caption]) => [
+    ...screenshot(file),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { line: LINE_1_5, after: 240 },
+      spacing: { line: LINE_1_5, after: 260 },
       children: [new TextRun({ text: caption, size: BODY_SIZE })],
     }),
   ]),
