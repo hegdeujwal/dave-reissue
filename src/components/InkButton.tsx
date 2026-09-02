@@ -28,7 +28,9 @@ export default function InkButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`block w-full border-2 px-4 py-2 text-left font-display text-lg uppercase tracking-wide transition-colors disabled:cursor-not-allowed disabled:border-dim disabled:text-dim disabled:shadow-none disabled:hover:bg-transparent disabled:hover:text-dim ${TONES[tone]}`}
+      className={`block w-full border-2 px-4 py-2 text-left font-display text-lg uppercase tracking-wide transition-colors ${
+        disabled ? "cursor-not-allowed border-dim text-dim" : TONES[tone]
+      }`}
     >
       {children}
     </button>

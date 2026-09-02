@@ -24,8 +24,8 @@ body {
   background: var(--color-navy);
   color: var(--color-bone);
   font-family: var(--font-sans);
-  /* Desktop-first. The game owns the viewport, nothing scrolls behind it. */
-  overflow: hidden;
+  /* Desktop-first, but never trap the page if the window is short. */
+  overflow-x: hidden;
 }
 
 /* Hard 4px offset ink block. Used everywhere a drop shadow would normally go. */
