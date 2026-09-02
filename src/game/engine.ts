@@ -8,6 +8,7 @@ import {
 } from "./theme";
 import { drawBackdrop, drawPlayer, drawTiles, setupCanvas } from "./render";
 import { LEVELS, Level } from "./levels";
+import { Input } from "./input";
 import {
   createPlayer,
   landSquash,
@@ -50,7 +51,8 @@ export class Game {
   private readonly level = new Level(LEVELS[0]);
   private readonly player: Player;
   private readonly stats: Stats = BASE_STATS;
-  private readonly held = new Set<string>();
+  private readonly input = new Input();
+  private paused = false;
   private readonly intent: Intent = {
     left: false,
     right: false,
@@ -66,16 +68,14 @@ export class Game {
 
   start() {
     if (this.raf) return;
-    window.addEventListener("keydown", this.onKeyDown);
-    window.addEventListener("keyup", this.onKeyUp);
+    this.input.attach();
     this.lastTime = performance.now();
     this.accumulator = 0;
     this.raf = requestAnimationFrame(this.frame);
   }
 
   stop() {
-    window.removeEventListener("keydown", this.onKeyDown);
-    window.removeEventListener("keyup", this.onKeyUp);
+    this.input.detach();
     if (!this.raf) return;
     cancelAnimationFrame(this.raf);
     this.raf = 0;
@@ -86,21 +86,32 @@ export class Game {
     setupCanvas(this.canvas);
   }
 
-  private readonly onKeyDown = (e: KeyboardEvent) => {
-    if (!this.held.has(e.code) && (e.code === "Space" || e.code === "ArrowUp")) {
+  private readFromKeys() {
+    this.intent.left = this.input.isDown("left");
+    this.intent.right = this.input.isDown("right");
+    this.intent.jumpHeld = this.input.isDown("jump");
+    if (this.input.consumeJumpPress()) {
       this.intent.jumpBuffer = PHYSICS.jumpBuffer;
     }
-    this.held.add(e.code);
-  };
 
-  private readonly onKeyUp = (e: KeyboardEvent) => {
-    this.held.delete(e.code);
-  };
+    if (this.input.consumePause()) this.paused = !this.paused;
+    if (this.input.consumeRestart()) this.restartLevel();
+  }
 
-  private readFromKeys() {
-    this.intent.left = this.held.has("ArrowLeft");
-    this.intent.right = this.held.has("ArrowRight");
-    this.intent.jumpHeld = this.held.has("Space") || this.held.has("ArrowUp");
+  /** R drops the player back at the start of the level. */
+  restartLevel() {
+    const p = this.player;
+    p.x = p.px = this.level.spawn.x;
+    p.y = p.py = this.level.spawn.y;
+    p.vx = 0;
+    p.vy = 0;
+    p.grounded = false;
+    p.coyote = 0;
+    p.rising = false;
+    p.sx = 1;
+    p.sy = 1;
+    this.paused = false;
+    this.snapCamera();
   }
 
   private readonly frame = (now: number) => {
@@ -111,6 +122,12 @@ export class Game {
     this.accumulator += frameDt;
 
     this.readFromKeys();
+
+    if (this.paused) {
+      this.accumulator = 0;
+      this.draw(1);
+      return;
+    }
 
     while (this.accumulator >= FIXED_DT) {
       this.savePrevious();
@@ -145,6 +162,7 @@ export class Game {
 
     stepCoyote(p, dt);
     stepSquash(p, dt);
+    // A jump pressed just before touchdown stays alive until the player lands.
     this.intent.jumpBuffer = Math.max(0, this.intent.jumpBuffer - dt);
 
     this.updateCamera(dt);
