@@ -43,7 +43,10 @@ export default function Home() {
   }, []);
 
   const startNewRun = useCallback(() => {
+    // A new run clears progress but keeps whoever you picked on the menu.
+    const character = loadSave().character;
     resetSave();
+    patchSave({ character });
     setStartLevel(0);
     setStartCheckpoint(null);
     setSnapshot(null);
