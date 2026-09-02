@@ -54,7 +54,7 @@ function statsFor(id: CharacterId): Stats {
   };
 }
 
-export type Mode = "playing" | "paused" | "levelComplete";
+export type Mode = "playing" | "paused" | "levelComplete" | "runComplete";
 
 /** What the React layer needs in order to draw the HUD and the menus. */
 export type Snapshot = {
@@ -222,7 +222,7 @@ export class Game {
   }
 
   setPaused(paused: boolean) {
-    if (this.mode === "levelComplete") return;
+    if (this.mode !== "playing" && this.mode !== "paused") return;
     this.mode = paused ? "paused" : "playing";
     this.publish();
   }
@@ -235,9 +235,7 @@ export class Game {
       this.intent.jumpBuffer = PHYSICS.jumpBuffer;
     }
 
-    if (this.input.consumePause() && this.mode !== "levelComplete") {
-      this.setPaused(this.mode === "playing");
-    }
+    if (this.input.consumePause()) this.setPaused(this.mode === "playing");
     if (this.input.consumeRestart()) this.restartLevel();
   }
 
@@ -335,7 +333,8 @@ export class Game {
 
     if (this.level.door && this.hasKey) {
       if (overlaps(p, tileBox(this.level.door, 4))) {
-        this.mode = "levelComplete";
+        this.mode =
+          this.levelIndex + 1 < LEVELS.length ? "levelComplete" : "runComplete";
         this.saveCompletion();
         this.publish(true);
       }
