@@ -248,8 +248,8 @@ const cover = [
     TEAM_WIDTHS,
     ["Name", "USN"],
     [
-      ["<Name>", "<USN>"],
-      ["<Name>", "<USN>"],
+      ["Ujwal Hegde", "NNM23IS201"],
+      ["K Aravind Kamath", "NNM23IS082"],
     ],
     { centreFirst: false },
   ),
