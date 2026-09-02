@@ -3,11 +3,10 @@ import {
   FIXED_DT,
   MAX_FRAME_DT,
   PHYSICS,
-  TILE,
-  VIEW_H,
   VIEW_W,
 } from "./theme";
-import { drawBackdrop, drawPlayer, setupCanvas } from "./render";
+import { drawBackdrop, drawPlayer, drawTiles, setupCanvas } from "./render";
+import { LEVELS, Level } from "./levels";
 import {
   createPlayer,
   landSquash,
@@ -16,6 +15,8 @@ import {
   stepHorizontal,
   stepJump,
   stepSquash,
+  resolveX,
+  resolveY,
   type Intent,
   type Player,
   type Stats,
@@ -43,6 +44,7 @@ export class Game {
   private camX = 0;
   private prevCamX = 0;
 
+  private readonly level = new Level(LEVELS[0]);
   private readonly player: Player;
   private readonly stats: Stats = BASE_STATS;
   private readonly held = new Set<string>();
@@ -55,7 +57,7 @@ export class Game {
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.ctx = setupCanvas(canvas);
-    this.player = createPlayer(TILE * 3, VIEW_H - TILE * 3);
+    this.player = createPlayer(this.level.spawn.x, this.level.spawn.y);
   }
 
   start() {
@@ -130,36 +132,30 @@ export class Game {
     stepJump(p, this.intent, this.stats);
     stepGravity(p, dt);
 
-    p.x += p.vx * dt;
-    p.y += p.vy * dt;
-
-    // Placeholder bounds. Real tile collision replaces this next.
-    const floor = VIEW_H - TILE - p.h;
     const wasGrounded = p.grounded;
-    p.grounded = false;
-    if (p.y >= floor) {
-      p.y = floor;
-      p.vy = 0;
-      p.grounded = true;
-      if (!wasGrounded) landSquash(p);
-    }
-    if (p.x < 0) {
-      p.x = 0;
-      p.vx = 0;
-    }
-    if (p.x + p.w > VIEW_W) {
-      p.x = VIEW_W - p.w;
-      p.vx = 0;
-    }
+    p.x += p.vx * dt;
+    resolveX(p, this.level.isSolid);
+    p.y += p.vy * dt;
+    resolveY(p, this.level.isSolid);
+    if (p.grounded && !wasGrounded) landSquash(p);
 
     stepCoyote(p, dt);
     stepSquash(p, dt);
     this.intent.jumpBuffer = Math.max(0, this.intent.jumpBuffer - dt);
+
+    this.updateCamera();
+  }
+
+  /** Follow the player, clamped so the view never leaves the level. */
+  private updateCamera() {
+    const target = this.player.x + this.player.w / 2 - VIEW_W / 2;
+    this.camX = Math.max(0, Math.min(this.level.widthPx - VIEW_W, target));
   }
 
   private draw(alpha: number) {
     const camX = lerp(this.prevCamX, this.camX, alpha);
     drawBackdrop(this.ctx, camX);
+    drawTiles(this.ctx, this.level, camX);
     drawPlayer(this.ctx, this.player, alpha, camX, CHARACTER_COLORS.dave, false, 0);
   }
 }

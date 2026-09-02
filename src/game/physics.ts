@@ -1,4 +1,4 @@
-import { JUICE, PHYSICS, PLAYER_H, PLAYER_W } from "./theme";
+import { JUICE, PHYSICS, PLAYER_H, PLAYER_W, TILE } from "./theme";
 
 /** What the player is asking for this step. Comes from input, never from keys. */
 export type Intent = {
@@ -137,4 +137,79 @@ export function stepSquash(p: Player, dt: number) {
 export function landSquash(p: Player) {
   p.sy = 1 - JUICE.landSquash;
   p.sx = 1 + JUICE.landSquash * 0.7;
+}
+
+/** Is the tile at this grid cell solid? Out of bounds sideways counts as solid. */
+export type SolidFn = (col: number, row: number) => boolean;
+
+const EPS = 1e-6;
+
+/**
+ * Axis-by-axis AABB resolution against the tile grid. The fixed step keeps
+ * the largest possible move (900 px/s at 1/120s) under 8px, well below one
+ * tile, so nothing can tunnel through a wall.
+ */
+export function resolveX(p: Player, isSolid: SolidFn) {
+  if (p.vx === 0) return;
+  const c0 = Math.floor(p.x / TILE);
+  const c1 = Math.floor((p.x + p.w - EPS) / TILE);
+  const r0 = Math.floor(p.y / TILE);
+  const r1 = Math.floor((p.y + p.h - EPS) / TILE);
+
+  const blocked = (col: number) => {
+    for (let r = r0; r <= r1; r++) if (isSolid(col, r)) return true;
+    return false;
+  };
+
+  if (p.vx > 0) {
+    for (let c = c0; c <= c1; c++) {
+      if (blocked(c)) {
+        p.x = c * TILE - p.w;
+        p.vx = 0;
+        return;
+      }
+    }
+  } else {
+    for (let c = c1; c >= c0; c--) {
+      if (blocked(c)) {
+        p.x = (c + 1) * TILE;
+        p.vx = 0;
+        return;
+      }
+    }
+  }
+}
+
+/** Vertical resolution. Sets `grounded` when the player lands on a tile top. */
+export function resolveY(p: Player, isSolid: SolidFn) {
+  p.grounded = false;
+  if (p.vy === 0) return;
+  const c0 = Math.floor(p.x / TILE);
+  const c1 = Math.floor((p.x + p.w - EPS) / TILE);
+  const r0 = Math.floor(p.y / TILE);
+  const r1 = Math.floor((p.y + p.h - EPS) / TILE);
+
+  const blocked = (row: number) => {
+    for (let c = c0; c <= c1; c++) if (isSolid(c, row)) return true;
+    return false;
+  };
+
+  if (p.vy > 0) {
+    for (let r = r0; r <= r1; r++) {
+      if (blocked(r)) {
+        p.y = r * TILE - p.h;
+        p.vy = 0;
+        p.grounded = true;
+        return;
+      }
+    }
+  } else {
+    for (let r = r1; r >= r0; r--) {
+      if (blocked(r)) {
+        p.y = (r + 1) * TILE;
+        p.vy = 0;
+        return;
+      }
+    }
+  }
 }

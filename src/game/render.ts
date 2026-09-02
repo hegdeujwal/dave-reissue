@@ -1,5 +1,6 @@
 import { COLORS, COMBAT, TILE, VIEW_H, VIEW_W } from "./theme";
 import type { Player } from "./physics";
+import { SOLID, type Level } from "./levels";
 
 /**
  * Size the backing store to the device pixel ratio so the flat vector shapes
@@ -83,4 +84,28 @@ export function drawPlayer(
 
   const bootH = Math.max(3, Math.round(h * 0.14));
   ctx.fillRect(Math.round(left), Math.round(bottom - bootH), Math.round(w), bootH);
+}
+
+/** Solid tiles: flat navy blocks with a bright 4px lip on any exposed top. */
+export function drawTiles(
+  ctx: CanvasRenderingContext2D,
+  level: Level,
+  camX: number,
+) {
+  const first = Math.max(0, Math.floor(camX / TILE));
+  const last = Math.min(level.cols - 1, Math.floor((camX + VIEW_W) / TILE));
+
+  for (let row = 0; row < level.rows; row++) {
+    for (let col = first; col <= last; col++) {
+      if (level.at(col, row) !== SOLID) continue;
+      const x = Math.round(col * TILE - camX);
+      const y = row * TILE;
+      ctx.fillStyle = COLORS.wall;
+      ctx.fillRect(x, y, TILE, TILE);
+      if (level.at(col, row - 1) !== SOLID) {
+        ctx.fillStyle = COLORS.wallEdge;
+        ctx.fillRect(x, y, TILE, 4);
+      }
+    }
+  }
 }
