@@ -71,6 +71,8 @@ export type Snapshot = {
   time: number;
   /** Short-lived message such as "Checkpoint saved". */
   toast: string | null;
+  /** Tutorial hint for the zone the player is standing in. */
+  hint: string | null;
 };
 
 export type GameOptions = {
@@ -118,6 +120,7 @@ export class Game {
   private checkpoint: Point | null = null;
   private toast: string | null = null;
   private toastTimer = 0;
+  private hint: string | null = null;
 
   private lastSignature = "";
 
@@ -171,6 +174,7 @@ export class Game {
     this.checkpoint = checkpoint;
     this.toast = null;
     this.toastTimer = 0;
+    this.hint = null;
     this.hearts = this.stats.hearts;
     this.invuln = 0;
     this.elapsed = 0;
@@ -303,6 +307,7 @@ export class Game {
 
     this.collectPickups();
     this.checkHazards();
+    this.updateHint();
     this.updateCamera(dt);
   }
 
@@ -335,6 +340,18 @@ export class Game {
         this.publish(true);
       }
     }
+  }
+
+  /** Tutorial hints fire from column ranges the player walks into. */
+  private updateHint() {
+    const zones = this.level.data.hints;
+    if (!zones) {
+      this.hint = null;
+      return;
+    }
+    const col = Math.floor((this.player.x + this.player.w / 2) / TILE);
+    const zone = zones.find((z) => col >= z.from && col <= z.to);
+    this.hint = zone ? zone.text : null;
   }
 
   /** Progress is written at exactly two moments: a checkpoint and a finish. */
@@ -521,6 +538,7 @@ export class Game {
       hasKey: this.hasKey,
       time: this.elapsed,
       toast: this.toast,
+      hint: this.hint,
     };
   }
 
@@ -536,6 +554,7 @@ export class Game {
       snapshot.hasKey,
       snapshot.time.toFixed(1),
       snapshot.toast ?? "",
+      snapshot.hint ?? "",
     ].join("|");
     if (!force && signature === this.lastSignature) return;
     this.lastSignature = signature;

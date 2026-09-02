@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState, useSyncExternalStore } from "react";
 import CharacterStrip from "@/components/CharacterStrip";
+import ControlsPanel from "@/components/ControlsPanel";
 import GameCanvas from "@/components/GameCanvas";
 import InkButton from "@/components/InkButton";
 import type { Game, Snapshot } from "@/game/engine";
@@ -72,6 +73,7 @@ export default function Home() {
           </InkButton>
         </div>
         <CharacterStrip value={save.character} onChange={chooseCharacter} />
+        <ControlsPanel />
       </main>
     );
   }
@@ -94,6 +96,9 @@ export default function Home() {
           ? `${snapshot.levelName} — hearts ${snapshot.hearts}/${snapshot.maxHearts} — gems ${snapshot.gems}/${snapshot.gemsTotal}`
           : "Loading"}
       </p>
+      {snapshot?.hint ? (
+        <p className="text-sm text-bone">{snapshot.hint}</p>
+      ) : null}
       {snapshot?.toast ? (
         <p className="font-display text-sm uppercase text-mint">{snapshot.toast}</p>
       ) : null}
