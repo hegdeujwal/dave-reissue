@@ -60,7 +60,3 @@ npx vercel --prod          # or import the repo at vercel.com/new
 ```
 
 Stock Next.js app: no environment variables, no build settings to change.
-
-## Licence
-
-MIT. See [LICENSE](LICENSE).
