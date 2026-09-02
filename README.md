@@ -42,10 +42,13 @@ npm run build    # production build
 
 ## Deploy
 
-Push to GitHub, then import the repository at
-[vercel.com/new](https://vercel.com/new). It is a stock Next.js app, so the
-defaults are correct — no environment variables and no build settings to
-change. Or from this directory: `npx vercel --prod`.
+```bash
+gh repo create dave-reissue --public --source=. --remote=origin --push
+npx vercel --prod          # or import the repo at vercel.com/new
+```
+
+It is a stock Next.js app, so the Vercel defaults are correct: no environment
+variables, no build settings to change.
 
 ## Licence
 
