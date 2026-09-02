@@ -213,3 +213,12 @@ export function resolveY(p: Player, isSolid: SolidFn) {
     }
   }
 }
+
+export type Box = { x: number; y: number; w: number; h: number };
+
+/** Plain AABB overlap, used for every pickup and hazard test. */
+export function overlaps(a: Box, b: Box) {
+  return (
+    a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+  );
+}

@@ -1,4 +1,4 @@
-import { COLORS, COMBAT, TILE, VIEW_H, VIEW_W } from "./theme";
+import { COLORS, COMBAT, JUICE, TILE, VIEW_H, VIEW_W } from "./theme";
 import type { Player } from "./physics";
 import { SOLID, SPIKE, type Level } from "./levels";
 
@@ -130,4 +130,83 @@ export function drawSpike(ctx: CanvasRenderingContext2D, x: number, y: number) {
     ctx.lineTo(left + w, y + TILE);
   }
   ctx.fill();
+}
+
+/** Gems: mint diamonds that bob gently so they read as collectable. */
+export function drawGem(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  clock: number,
+) {
+  const cx = x + TILE / 2;
+  const cy =
+    y + TILE / 2 + Math.sin(clock * JUICE.bobSpeed + x * 0.04) * JUICE.bobAmp;
+  const r = 9;
+
+  ctx.fillStyle = COLORS.mint;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r);
+  ctx.lineTo(cx + r * 0.74, cy);
+  ctx.lineTo(cx, cy + r);
+  ctx.lineTo(cx - r * 0.74, cy);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(Math.round(cx - 3), Math.round(cy - 2), 3, 3);
+}
+
+/** The key: a mint bow, stem and two teeth. */
+export function drawKey(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  clock: number,
+) {
+  const cx = x + TILE / 2;
+  const top =
+    y + 7 + Math.sin(clock * JUICE.bobSpeed + 1) * JUICE.bobAmp;
+
+  ctx.fillStyle = COLORS.mint;
+  ctx.fillRect(Math.round(cx - 6), Math.round(top), 12, 10);
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(Math.round(cx - 3), Math.round(top + 3), 6, 4);
+
+  ctx.fillStyle = COLORS.mint;
+  ctx.fillRect(Math.round(cx - 2), Math.round(top + 10), 4, 11);
+  ctx.fillRect(Math.round(cx + 2), Math.round(top + 13), 5, 3);
+  ctx.fillRect(Math.round(cx + 2), Math.round(top + 18), 5, 3);
+}
+
+/** The door. Locked shows a bone plate; unlocked gets a mint outline. */
+export function drawDoor(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  unlocked: boolean,
+) {
+  const w = 26;
+  const h = 46;
+  const left = Math.round(x + (TILE - w) / 2);
+  const top = Math.round(y + TILE - h);
+
+  ctx.fillStyle = COLORS.orange;
+  ctx.fillRect(left, top, w, h);
+
+  ctx.fillStyle = COLORS.ink;
+  ctx.fillRect(left + 4, top + 4, w - 8, 3);
+
+  if (unlocked) {
+    ctx.fillStyle = COLORS.mint;
+    ctx.fillRect(left - 3, top - 3, w + 6, 3);
+    ctx.fillRect(left - 3, top + h, w + 6, 3);
+    ctx.fillRect(left - 3, top, 3, h);
+    ctx.fillRect(left + w, top, 3, h);
+  } else {
+    ctx.fillStyle = COLORS.ink;
+    ctx.fillRect(left + w / 2 - 5, top + h / 2 - 5, 10, 10);
+    ctx.fillStyle = COLORS.orange;
+    ctx.fillRect(left + w / 2 - 2, top + h / 2 - 2, 4, 4);
+  }
 }

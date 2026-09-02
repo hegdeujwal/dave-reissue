@@ -46,14 +46,20 @@ export const LEVELS: LevelData[] = [
 ];
 
 export type Point = { x: number; y: number };
+export type Cell = { col: number; row: number };
 
-/** A parsed level: the solid grid plus the pixel bounds the camera clamps to. */
+/** A parsed level: the solid grid, its entities, and the camera bounds. */
 export class Level {
   readonly cols: number;
   readonly rows: number;
   readonly widthPx: number;
   readonly heightPx: number;
   readonly spawn: Point;
+  readonly gems: Cell[] = [];
+  readonly checkpoints: Cell[] = [];
+  readonly enemies: Cell[] = [];
+  readonly key: Cell | null = null;
+  readonly door: Cell | null = null;
   private readonly cells: string[];
 
   constructor(readonly data: LevelData) {
@@ -64,9 +70,29 @@ export class Level {
     this.heightPx = this.rows * TILE;
     this.spawn = { x: 0, y: 0 };
 
-    for (let r = 0; r < this.rows; r++) {
-      const c = this.cells[r].indexOf(SPAWN);
-      if (c >= 0) this.spawn = tileToBox(c, r);
+    for (let row = 0; row < this.rows; row++) {
+      for (let col = 0; col < this.cols; col++) {
+        switch (this.cells[row][col]) {
+          case SPAWN:
+            this.spawn = tileToBox(col, row);
+            break;
+          case GEM:
+            this.gems.push({ col, row });
+            break;
+          case CHECKPOINT:
+            this.checkpoints.push({ col, row });
+            break;
+          case ENEMY:
+            this.enemies.push({ col, row });
+            break;
+          case KEY:
+            this.key = { col, row };
+            break;
+          case DOOR:
+            this.door = { col, row };
+            break;
+        }
+      }
     }
   }
 
@@ -87,6 +113,16 @@ export function tileToBox(col: number, row: number): Point {
   return {
     x: col * TILE + (TILE - PLAYER_W) / 2,
     y: (row + 1) * TILE - PLAYER_H,
+  };
+}
+
+/** The pixel box of a tile, inset so pickups need a real overlap. */
+export function tileBox(cell: Cell, inset = 0) {
+  return {
+    x: cell.col * TILE + inset,
+    y: cell.row * TILE + inset,
+    w: TILE - inset * 2,
+    h: TILE - inset * 2,
   };
 }
 
