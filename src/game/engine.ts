@@ -6,10 +6,12 @@ import {
   MAX_FRAME_DT,
   PHYSICS,
   TILE,
+  TOAST_TIME,
   VIEW_W,
 } from "./theme";
 import {
   drawBackdrop,
+  drawCheckpoint,
   drawDoor,
   drawEnemy,
   drawGem,
@@ -18,7 +20,7 @@ import {
   drawTiles,
   setupCanvas,
 } from "./render";
-import { LEVELS, Level, SPIKE, tileBox } from "./levels";
+import { LEVELS, Level, SPIKE, tileBox, tileToBox, type Point } from "./levels";
 import { Input } from "./input";
 import {
   approach,
@@ -61,6 +63,8 @@ export type Snapshot = {
   gemsTotal: number;
   hasKey: boolean;
   time: number;
+  /** Short-lived message such as "Checkpoint saved". */
+  toast: string | null;
 };
 
 export type GameHooks = {
@@ -98,6 +102,11 @@ export class Game {
   private gemsTaken: boolean[] = [];
   private enemies: Enemy[] = [];
   private hasKey = false;
+  /** Index of the checkpoint the player has touched, -1 for none. */
+  private activeCheckpoint = -1;
+  private checkpoint: Point | null = null;
+  private toast: string | null = null;
+  private toastTimer = 0;
 
   private lastSignature = "";
 
@@ -146,6 +155,10 @@ export class Game {
     this.gemsTaken = this.level.gems.map(() => false);
     this.enemies = this.level.enemies.map((c) => createEnemy(c.col, c.row));
     this.hasKey = false;
+    this.activeCheckpoint = -1;
+    this.checkpoint = null;
+    this.toast = null;
+    this.toastTimer = 0;
     this.hearts = this.stats.hearts;
     this.invuln = 0;
     this.elapsed = 0;
@@ -163,11 +176,12 @@ export class Game {
     this.loadLevel(this.levelIndex);
   }
 
-  /** Put the player back on their feet without touching level progress. */
+  /** Put the player back at the last checkpoint, or the level start. */
   private respawn() {
     const p = this.player;
-    p.x = p.px = this.level.spawn.x;
-    p.y = p.py = this.level.spawn.y;
+    const at = this.checkpoint ?? this.level.spawn;
+    p.x = p.px = at.x;
+    p.y = p.py = at.y;
     p.vx = 0;
     p.vy = 0;
     p.grounded = false;
@@ -254,6 +268,10 @@ export class Game {
     stepCoyote(p, dt);
     stepSquash(p, dt);
     this.invuln = Math.max(0, this.invuln - dt);
+    if (this.toastTimer > 0) {
+      this.toastTimer = Math.max(0, this.toastTimer - dt);
+      if (this.toastTimer === 0) this.toast = null;
+    }
     // A jump pressed just before touchdown stays alive until the player lands.
     this.intent.jumpBuffer = Math.max(0, this.intent.jumpBuffer - dt);
 
@@ -277,12 +295,26 @@ export class Game {
       if (overlaps(p, tileBox(this.level.key, 5))) this.hasKey = true;
     }
 
+    this.level.checkpoints.forEach((cell, i) => {
+      if (this.activeCheckpoint === i) return;
+      if (!overlaps(p, tileBox(cell, 4))) return;
+      this.activeCheckpoint = i;
+      this.checkpoint = tileToBox(cell.col, cell.row);
+      this.showToast("Checkpoint saved");
+    });
+
     if (this.level.door && this.hasKey) {
       if (overlaps(p, tileBox(this.level.door, 4))) {
         this.mode = "levelComplete";
         this.publish(true);
       }
     }
+  }
+
+  private showToast(message: string) {
+    this.toast = message;
+    this.toastTimer = TOAST_TIME;
+    this.publish(true);
   }
 
   /**
@@ -380,6 +412,15 @@ export class Game {
     drawBackdrop(ctx, camX);
     drawTiles(ctx, this.level, camX);
 
+    this.level.checkpoints.forEach((cell, i) => {
+      drawCheckpoint(
+        ctx,
+        cell.col * TILE - camX,
+        cell.row * TILE,
+        this.activeCheckpoint === i,
+      );
+    });
+
     this.level.gems.forEach((cell, i) => {
       if (this.gemsTaken[i]) return;
       drawGem(ctx, cell.col * TILE - camX, cell.row * TILE, this.clock);
@@ -428,6 +469,7 @@ export class Game {
       gemsTotal: this.level.gems.length,
       hasKey: this.hasKey,
       time: this.elapsed,
+      toast: this.toast,
     };
   }
 
@@ -441,6 +483,7 @@ export class Game {
       snapshot.gems,
       snapshot.hasKey,
       snapshot.time.toFixed(1),
+      snapshot.toast ?? "",
     ].join("|");
     if (!force && signature === this.lastSignature) return;
     this.lastSignature = signature;

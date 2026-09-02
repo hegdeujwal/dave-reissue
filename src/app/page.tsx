@@ -17,9 +17,12 @@ export default function Home() {
       </div>
       <p className="text-sm text-dim">
         {snapshot
-          ? `${snapshot.levelName} — gems ${snapshot.gems}/${snapshot.gemsTotal}`
+          ? `${snapshot.levelName} — hearts ${snapshot.hearts}/${snapshot.maxHearts} — gems ${snapshot.gems}/${snapshot.gemsTotal}`
           : "Loading"}
       </p>
+      {snapshot?.toast ? (
+        <p className="font-display text-sm uppercase text-mint">{snapshot.toast}</p>
+      ) : null}
     </main>
   );
 }

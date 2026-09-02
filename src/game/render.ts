@@ -237,3 +237,34 @@ export function drawEnemy(
   const eyeX = e.dir === 1 ? x + e.w - 11 : x + 4;
   ctx.fillRect(eyeX, y + 11, 7, 5);
 }
+
+/** Checkpoint flags: outlined until touched, then filled mint. */
+export function drawCheckpoint(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  active: boolean,
+) {
+  const poleX = Math.round(x + 8);
+  const base = y + TILE;
+  const top = base - 27;
+
+  ctx.fillStyle = active ? COLORS.mint : COLORS.dim;
+  ctx.fillRect(poleX, top, 4, 27);
+  ctx.fillRect(poleX - 4, base - 4, 12, 4);
+
+  ctx.beginPath();
+  ctx.moveTo(poleX + 4, top);
+  ctx.lineTo(poleX + 19, top + 6);
+  ctx.lineTo(poleX + 4, top + 12);
+  ctx.closePath();
+
+  if (active) {
+    ctx.fillStyle = COLORS.mint;
+    ctx.fill();
+  } else {
+    ctx.strokeStyle = COLORS.dim;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
