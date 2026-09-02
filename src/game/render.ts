@@ -75,11 +75,16 @@ const STARS = Array.from({ length: 90 }, (_, i) => ({
   r: (i % 3) * 0.5 + 0.6,
 }));
 
-/** Four parallax layers: sky, stars, a far skyline, and near structures. */
+/**
+ * Four parallax layers: sky, stars, a far skyline, and near structures. The
+ * size is a parameter so the menu can run the same backdrop full-bleed.
+ */
 export function drawBackdrop(
   ctx: CanvasRenderingContext2D,
   camX: number,
   clock: number,
+  viewW = VIEW_W,
+  viewH = VIEW_H,
 ) {
   // Canvas state survives between frames, so reset the bits the figures and
   // effects change before anything else is drawn.
@@ -88,16 +93,16 @@ export function drawBackdrop(
   ctx.lineCap = "butt";
   ctx.lineJoin = "miter";
 
-  const sky = ctx.createLinearGradient(0, 0, 0, VIEW_H);
+  const sky = ctx.createLinearGradient(0, 0, 0, viewH);
   sky.addColorStop(0, COLORS.skyTop);
   sky.addColorStop(1, COLORS.skyBottom);
   ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  ctx.fillRect(0, 0, viewW, viewH);
 
   // Stars, drifting very slowly.
   for (const star of STARS) {
     const x = ((star.x - camX * 0.12) % 3600 + 3600) % 3600;
-    if (x > VIEW_W) continue;
+    if (x > viewW) continue;
     const twinkle = 0.5 + 0.5 * Math.sin(clock * 1.6 + star.x);
     ctx.globalAlpha = 0.25 + twinkle * 0.45;
     ctx.fillStyle = COLORS.star;
@@ -106,17 +111,17 @@ export function drawBackdrop(
   ctx.globalAlpha = 1;
 
   // Far skyline.
-  drawSkyline(ctx, camX * 0.18, 150, 92, COLORS.far);
+  drawSkyline(ctx, camX * 0.18, 150, viewH * 0.18, viewW, viewH, COLORS.far);
   // Nearer blocks.
-  drawSkyline(ctx, camX * 0.36, 96, 128, COLORS.mid);
+  drawSkyline(ctx, camX * 0.36, 96, viewH * 0.25, viewW, viewH, COLORS.mid);
 
   // The faint structural grid that sells the parallax.
   const step = TILE * 2;
   const offset = -(((camX * 0.5) % step) + step) % step;
   ctx.globalAlpha = 0.5;
   ctx.fillStyle = COLORS.grid;
-  for (let x = offset; x < VIEW_W; x += step) ctx.fillRect(Math.round(x), 0, 1, VIEW_H);
-  for (let y = 0; y < VIEW_H; y += step) ctx.fillRect(0, y, VIEW_W, 1);
+  for (let x = offset; x < viewW; x += step) ctx.fillRect(Math.round(x), 0, 1, viewH);
+  for (let y = 0; y < viewH; y += step) ctx.fillRect(0, y, viewW, 1);
   ctx.globalAlpha = 1;
 }
 
@@ -125,22 +130,24 @@ function drawSkyline(
   offset: number,
   seed: number,
   baseHeight: number,
+  viewW: number,
+  viewH: number,
   color: string,
 ) {
   ctx.fillStyle = color;
   const width = 74;
   const start = Math.floor(offset / width) - 1;
-  for (let i = start; i < start + VIEW_W / width + 3; i++) {
+  for (let i = start; i < start + viewW / width + 3; i++) {
     const n = Math.abs(Math.sin(i * 12.9898 + seed) * 43758.5453) % 1;
-    const h = baseHeight + n * 92;
+    const h = baseHeight + n * viewH * 0.18;
     const x = Math.round(i * width - offset);
-    ctx.fillRect(x, VIEW_H - h, width - 8, h);
+    ctx.fillRect(x, viewH - h, width - 8, h);
     // A couple of lit windows so the blocks read as buildings.
     ctx.globalAlpha = 0.5;
     ctx.fillStyle = COLORS.star;
     for (let w = 0; w < 3; w++) {
-      const wy = VIEW_H - h + 14 + w * 22;
-      if (wy > VIEW_H - 20) break;
+      const wy = viewH - h + 14 + w * 22;
+      if (wy > viewH - 20) break;
       ctx.fillRect(x + 12 + (w % 2) * 22, wy, 7, 9);
     }
     ctx.globalAlpha = 1;

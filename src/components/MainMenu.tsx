@@ -4,6 +4,7 @@ import CharacterStrip from "@/components/CharacterStrip";
 import ControlsPanel from "@/components/ControlsPanel";
 import InkButton from "@/components/InkButton";
 import LevelSelect from "@/components/LevelSelect";
+import MenuBackdrop from "@/components/MenuBackdrop";
 import { LEVELS } from "@/game/levels";
 import { hasProgress, type SaveData } from "@/game/save";
 import type { CharacterId } from "@/game/theme";
@@ -64,7 +65,8 @@ export default function MainMenu({
   const canContinue = hasProgress(save);
 
   return (
-    <main className="flex min-h-screen items-center px-10 py-10 xl:px-16">
+    <main className="relative flex min-h-screen items-center px-10 py-10 xl:px-16">
+      <MenuBackdrop />
       <div className="flex w-full max-w-6xl flex-col gap-10 lg:flex-row lg:items-start lg:gap-16">
         <div className="flex shrink-0 flex-col gap-7">
           <div>
