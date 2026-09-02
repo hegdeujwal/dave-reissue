@@ -1,18 +1,24 @@
 @import "tailwindcss";
 
 @theme inline {
+  /* Ground and raised surfaces. */
   --color-navy: #14162b;
+  --color-surface: #1c1f3a;
+  --color-surface-2: #23274a;
+  --color-line: #343a66;
+
+  /* Text, from loudest to quietest. */
   --color-bone: #f2ede3;
+  --color-muted: #9aa0c8;
+  --color-faint: #6f7599;
+
+  /* Semantics, unchanged: pink hurts, mint helps. */
   --color-orange: #ff5a1f;
   --color-pink: #ff48b0;
   --color-mint: #4ce0b3;
-  --color-wall: #272b4e;
-  --color-dim: #4a4f7a;
 
   --font-display: var(--font-archivo-black), system-ui, sans-serif;
   --font-sans: var(--font-archivo), system-ui, sans-serif;
-
-  --radius-none: 0px;
 }
 
 html,
@@ -21,26 +27,65 @@ body {
 }
 
 body {
-  background: var(--color-navy);
+  /* A soft pool of light behind the content, rather than flat navy. */
+  background:
+    radial-gradient(120% 70% at 50% -10%, #232849 0%, transparent 62%),
+    var(--color-navy);
+  background-attachment: fixed;
   color: var(--color-bone);
   font-family: var(--font-sans);
-  /* Desktop-first, but never trap the page if the window is short. */
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Hard 4px offset ink block. Used everywhere a drop shadow would normally go. */
-@utility ink {
-  box-shadow: 4px 4px 0 0 var(--color-bone);
+/* A raised surface: hairline edge, faint top highlight, soft cast shadow. */
+@utility panel {
+  background-color: rgb(28 31 58 / 0.66);
+  border: 1px solid rgb(242 237 227 / 0.08);
+  box-shadow:
+    inset 0 1px 0 0 rgb(242 237 227 / 0.06),
+    0 1px 2px rgb(0 0 0 / 0.28),
+    0 18px 44px -22px rgb(0 0 0 / 0.85);
 }
 
-@utility ink-orange {
-  box-shadow: 4px 4px 0 0 var(--color-orange);
+/* The same, but frosted, for anything laid over the game. */
+@utility panel-glass {
+  background-color: rgb(20 22 43 / 0.72);
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+  border: 1px solid rgb(242 237 227 / 0.1);
+  box-shadow:
+    inset 0 1px 0 0 rgb(242 237 227 / 0.07),
+    0 10px 30px -14px rgb(0 0 0 / 0.9);
 }
 
-@utility ink-mint {
-  box-shadow: 4px 4px 0 0 var(--color-mint);
+/* Full-bleed scrim for the pause and level-complete screens. */
+@utility scrim {
+  background: linear-gradient(
+    to bottom,
+    rgb(12 14 28 / 0.94),
+    rgb(12 14 28 / 0.88)
+  );
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
-@utility ink-dim {
-  box-shadow: 4px 4px 0 0 var(--color-dim);
+@utility lift {
+  transition:
+    transform 0.18s cubic-bezier(0.2, 0.7, 0.3, 1),
+    box-shadow 0.18s ease,
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+/* Reduce motion for anyone who asks for it. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

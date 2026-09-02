@@ -1,6 +1,6 @@
 "use client";
 
-import InkButton from "@/components/InkButton";
+import Button from "@/components/Button";
 import type { Snapshot } from "@/game/engine";
 
 type Props = {
@@ -10,11 +10,23 @@ type Props = {
   onQuit: () => void;
 };
 
-function Stat({ label, value, tone }: { label: string; value: string; tone: string }) {
+function Stat({
+  label,
+  value,
+  tone = "text-bone",
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+}) {
   return (
-    <div className="border-2 border-dim/50 px-4 py-3">
-      <p className="text-[10px] uppercase tracking-[0.28em] text-dim">{label}</p>
-      <p className={`font-display text-2xl tabular-nums ${tone}`}>{value}</p>
+    <div className="panel min-w-[116px] rounded-2xl px-5 py-4">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-faint">
+        {label}
+      </p>
+      <p className={`mt-1.5 font-display text-2xl leading-none tabular-nums ${tone}`}>
+        {value}
+      </p>
     </div>
   );
 }
@@ -30,14 +42,14 @@ export default function LevelComplete({
   const perfect = snapshot.gems === snapshot.gemsTotal;
 
   return (
-    <div className="absolute inset-0 flex flex-col justify-center gap-6 bg-navy/95 px-12">
+    <div className="scrim absolute inset-0 flex flex-col justify-center gap-7 px-14">
       <div>
-        <p className="mb-1 text-[11px] uppercase tracking-[0.3em] text-dim">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-faint">
           {done
             ? "Ten of ten"
             : `Level ${snapshot.levelIndex + 1} of ${snapshot.levelCount} — ${snapshot.levelName}`}
         </p>
-        <h2 className="font-display text-5xl uppercase leading-none tracking-tight">
+        <h2 className="mt-2 font-display text-5xl leading-none tracking-[-0.035em]">
           {done ? "Run complete" : "Level complete"}
         </h2>
       </div>
@@ -48,20 +60,20 @@ export default function LevelComplete({
           value={`${snapshot.gems}/${snapshot.gemsTotal}`}
           tone={perfect ? "text-mint" : "text-bone"}
         />
-        <Stat label="Time" value={`${snapshot.time.toFixed(1)}s`} tone="text-bone" />
+        <Stat label="Time" value={`${snapshot.time.toFixed(1)}s`} />
         <Stat label="Hearts left" value={`${snapshot.hearts}`} tone="text-orange" />
         <Stat label="Banked" value={`${totalGems}`} tone="text-mint" />
       </div>
 
-      <div className="flex w-64 flex-col gap-3">
+      <div className="flex w-64 flex-col gap-2.5">
         {done ? null : (
-          <InkButton tone="primary" onClick={onNext}>
+          <Button tone="primary" onClick={onNext}>
             Next level
-          </InkButton>
+          </Button>
         )}
-        <InkButton tone={done ? "primary" : "quiet"} onClick={onQuit}>
+        <Button tone={done ? "primary" : "ghost"} onClick={onQuit}>
           Back to menu
-        </InkButton>
+        </Button>
       </div>
     </div>
   );

@@ -1,8 +1,8 @@
 "use client";
 
+import Button from "@/components/Button";
 import CharacterStrip from "@/components/CharacterStrip";
 import ControlsPanel from "@/components/ControlsPanel";
-import InkButton from "@/components/InkButton";
 import type { Snapshot } from "@/game/engine";
 import type { CharacterId } from "@/game/theme";
 
@@ -24,31 +24,31 @@ export default function PauseMenu({
   onCharacter,
 }: Props) {
   return (
-    <div className="absolute inset-0 flex items-center gap-8 bg-navy/95 px-8">
-      <div className="flex w-52 shrink-0 flex-col gap-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.3em] text-dim">
+    <div className="scrim absolute inset-0 flex items-center gap-10 px-10">
+      <div className="flex w-56 shrink-0 flex-col gap-2.5">
+        <div className="mb-2">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-faint">
             Level {snapshot.levelIndex + 1} of {snapshot.levelCount}
           </p>
-          <h2 className="font-display text-3xl uppercase leading-none tracking-tight">
+          <h2 className="mt-1.5 font-display text-3xl leading-none tracking-[-0.03em]">
             Paused
           </h2>
-          <p className="mt-1 text-xs uppercase tracking-widest text-dim">
-            {snapshot.levelName}
-          </p>
+          <p className="mt-2 text-sm text-muted">{snapshot.levelName}</p>
         </div>
-        <InkButton tone="primary" onClick={onResume}>
+        <Button tone="primary" onClick={onResume} hint="Esc">
           Resume
-        </InkButton>
-        <InkButton onClick={onRestart}>Restart level</InkButton>
-        <InkButton tone="quiet" onClick={onQuit}>
+        </Button>
+        <Button onClick={onRestart} hint="R">
+          Restart level
+        </Button>
+        <Button tone="ghost" onClick={onQuit}>
           Quit to menu
-        </InkButton>
+        </Button>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-4">
+      <div className="flex min-w-0 flex-1 flex-col gap-5">
         <div>
-          <h3 className="mb-2 font-display text-xs uppercase tracking-[0.28em] text-dim">
+          <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-faint">
             Swap pilot
           </h3>
           <CharacterStrip value={character} onChange={onCharacter} compact />

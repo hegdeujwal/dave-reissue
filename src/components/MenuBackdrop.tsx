@@ -50,12 +50,16 @@ export default function MenuBackdrop() {
       <canvas
         ref={ref}
         aria-hidden
-        className="pointer-events-none fixed inset-0 -z-20 h-full w-full opacity-60"
+        className="pointer-events-none fixed inset-0 -z-20 h-full w-full opacity-45"
       />
       {/* A scrim, so the menu text stays readable over the skyline. */}
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 -z-10 bg-navy/55"
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{
+          background:
+            "linear-gradient(to bottom, rgb(20 22 43 / 0.62), rgb(20 22 43 / 0.88))",
+        }}
       />
     </>
   );

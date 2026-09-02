@@ -1,8 +1,8 @@
 "use client";
 
+import Button from "@/components/Button";
 import CharacterStrip from "@/components/CharacterStrip";
 import ControlsPanel from "@/components/ControlsPanel";
-import InkButton from "@/components/InkButton";
 import LevelSelect from "@/components/LevelSelect";
 import MenuBackdrop from "@/components/MenuBackdrop";
 import { LEVELS } from "@/game/levels";
@@ -18,39 +18,32 @@ type Props = {
   onPickLevel: (index: number) => void;
 };
 
-/** The title, stacked in three offset colours instead of a drop shadow. */
-function Title() {
-  const lines = ["Dave:", "Reissue"];
+function SectionLabel({ children }: { children: string }) {
   return (
-    <h1 className="relative font-display text-6xl uppercase leading-[0.85] tracking-tight xl:text-7xl">
-      <span
-        aria-hidden
-        className="absolute left-[6px] top-[6px] text-pink/70 select-none"
-      >
-        {lines.map((line) => (
-          <span key={line} className="block">
-            {line}
-          </span>
-        ))}
-      </span>
-      <span
-        aria-hidden
-        className="absolute left-[3px] top-[3px] text-orange select-none"
-      >
-        {lines.map((line) => (
-          <span key={line} className="block">
-            {line}
-          </span>
-        ))}
-      </span>
-      <span className="relative block text-bone">
-        {lines.map((line) => (
-          <span key={line} className="block">
-            {line}
-          </span>
-        ))}
-      </span>
-    </h1>
+    <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-faint">
+      {children}
+    </h2>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  tone = "text-bone",
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-[10px] font-semibold uppercase tracking-[0.18em] text-faint">
+        {label}
+      </dt>
+      <dd className={`font-display text-xl leading-none tabular-nums ${tone}`}>
+        {value}
+      </dd>
+    </div>
   );
 }
 
@@ -65,72 +58,68 @@ export default function MainMenu({
   const canContinue = hasProgress(save);
 
   return (
-    <main className="relative flex min-h-screen items-center px-10 py-10 xl:px-16">
+    <main className="relative flex min-h-screen items-center px-8 py-12 lg:px-14">
       <MenuBackdrop />
-      <div className="flex w-full max-w-6xl flex-col gap-10 lg:flex-row lg:items-start lg:gap-16">
-        <div className="flex shrink-0 flex-col gap-7">
+
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 lg:flex-row lg:items-start lg:gap-16">
+        <div className="flex shrink-0 flex-col gap-8 lg:w-[360px]">
           <div>
-            <p className="mb-3 text-[11px] uppercase tracking-[0.32em] text-dim">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-faint">
               A Dangerous Dave remake
             </p>
-            <Title />
+            <h1 className="mt-4 font-display text-[64px] leading-[0.92] tracking-[-0.035em] xl:text-7xl">
+              <span className="text-orange">Dave:</span>
+              <br />
+              <span className="text-bone">Reissue</span>
+            </h1>
+            <p className="mt-5 max-w-sm text-[15px] leading-relaxed text-muted">
+              Ten levels. Find the key, reach the door. Later on you will need a
+              gun to open the way and a jetpack to get off the ground.
+            </p>
           </div>
 
-          <p className="max-w-xs text-sm leading-relaxed text-dim">
-            Ten levels. Find the key, reach the door. Later on you will need a
-            gun to open the way and a jetpack to get off the ground.
-          </p>
-
-          <div className="flex w-64 flex-col gap-3">
-            <InkButton tone="primary" onClick={onContinue} disabled={!canContinue}>
+          <div className="flex w-full max-w-xs flex-col gap-2.5">
+            <Button
+              tone="primary"
+              onClick={onContinue}
+              disabled={!canContinue}
+              hint={canContinue ? `Level ${save.unlockedLevels}` : undefined}
+            >
               Continue
-            </InkButton>
-            <InkButton onClick={onNewRun}>New run</InkButton>
+            </Button>
+            <Button onClick={onNewRun}>New run</Button>
           </div>
 
-          <dl className="flex gap-6 border-t-2 border-dim/40 pt-4 text-xs uppercase tracking-widest">
-            <div>
-              <dt className="text-dim">Unlocked</dt>
-              <dd className="font-display text-lg text-bone tabular-nums">
-                {save.unlockedLevels}/{LEVELS.length}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-dim">Gems</dt>
-              <dd className="font-display text-lg text-mint tabular-nums">
-                {save.gems}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-dim">Pilot</dt>
-              <dd className="font-display text-lg capitalize text-bone">
-                {save.character}
-              </dd>
-            </div>
+          <dl className="panel flex gap-8 rounded-2xl px-5 py-4">
+            <Stat
+              label="Unlocked"
+              value={`${save.unlockedLevels}/${LEVELS.length}`}
+            />
+            <Stat label="Gems" value={`${save.gems}`} tone="text-mint" />
+            <Stat
+              label="Pilot"
+              value={save.character[0].toUpperCase() + save.character.slice(1)}
+            />
           </dl>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-6">
+        <div className="flex min-w-0 flex-1 flex-col gap-8">
           <section>
-            <h2 className="mb-3 font-display text-xs uppercase tracking-[0.28em] text-dim">
-              Pilot
-            </h2>
+            <SectionLabel>Pilot</SectionLabel>
             <CharacterStrip value={save.character} onChange={onCharacter} />
           </section>
 
           <section>
-            <h2 className="mb-3 font-display text-xs uppercase tracking-[0.28em] text-dim">
-              Levels
-            </h2>
+            <SectionLabel>Levels</SectionLabel>
             <LevelSelect unlocked={save.unlockedLevels} onPick={onPickLevel} />
           </section>
 
           <div className="flex flex-wrap items-start gap-4">
             <ControlsPanel />
-            <div className="w-52">
-              <InkButton tone="quiet" onClick={onReset}>
+            <div className="w-full max-w-[200px]">
+              <Button tone="ghost" size="sm" onClick={onReset}>
                 Reset progress
-              </InkButton>
+              </Button>
             </div>
           </div>
         </div>

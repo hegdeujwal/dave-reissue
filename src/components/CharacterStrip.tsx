@@ -17,11 +17,7 @@ function bar(value: number, min: number, max: number) {
 function stats(character: Character) {
   return [
     { label: "Speed", pct: bar(character.maxSpeed, 190, 340), tone: "bg-orange" },
-    {
-      label: "Jump",
-      pct: bar(-character.jumpVelocity, 540, 680),
-      tone: "bg-mint",
-    },
+    { label: "Jump", pct: bar(-character.jumpVelocity, 540, 680), tone: "bg-mint" },
     { label: "Hearts", pct: bar(character.hearts, 2, 5), tone: "bg-pink" },
   ];
 }
@@ -37,42 +33,56 @@ export default function CharacterStrip({ value, onChange, compact }: Props) {
             key={character.id}
             type="button"
             onClick={() => onChange(character.id)}
-            className={`group relative flex flex-col gap-2 border-2 p-3 text-left transition-all ${
-              compact ? "w-[124px]" : "w-[150px]"
+            aria-pressed={selected}
+            className={`lift group relative flex flex-col items-stretch gap-2.5 overflow-hidden rounded-2xl p-4 text-left outline-none focus-visible:ring-2 focus-visible:ring-orange/70 ${
+              compact ? "w-[132px]" : "w-[158px]"
             } ${
               selected
-                ? "border-bone bg-bone/[0.06] shadow-[4px_4px_0_0_var(--color-bone)]"
-                : "border-dim/70 hover:border-bone/70 hover:bg-bone/[0.03]"
+                ? "bg-bone/[0.08] ring-1 ring-inset ring-bone/25 shadow-[0_14px_36px_-18px_rgb(0_0_0_/_0.9)]"
+                : "bg-bone/[0.03] ring-1 ring-inset ring-bone/8 hover:-translate-y-0.5 hover:bg-bone/[0.06] hover:ring-bone/16"
             }`}
           >
+            {/* A wash of the character's own colour behind the figure. */}
             <span
-              className="absolute right-2 top-2 block h-2 w-2"
-              style={{ backgroundColor: selected ? character.color : "transparent" }}
               aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-24 opacity-[0.16] transition-opacity duration-200 group-hover:opacity-25"
+              style={{
+                background: `radial-gradient(60% 80% at 50% 0%, ${character.color}, transparent 70%)`,
+                opacity: selected ? 0.28 : undefined,
+              }}
             />
 
-            <span className="flex justify-center">
+            <span className="relative flex justify-center">
               <CharacterPortrait
                 character={character}
-                width={compact ? 54 : 64}
-                height={compact ? 54 : 64}
+                width={compact ? 56 : 68}
+                height={compact ? 56 : 68}
                 jetpack={selected}
               />
             </span>
 
-            <span className="font-display text-base uppercase tracking-wide">
-              {character.name}
+            <span className="relative flex items-center justify-between">
+              <span className="font-display text-[15px] tracking-tight">
+                {character.name}
+              </span>
+              <span
+                className={`block h-1.5 w-1.5 rounded-full transition-opacity duration-200 ${
+                  selected ? "opacity-100" : "opacity-0"
+                }`}
+                style={{ backgroundColor: character.color }}
+                aria-hidden
+              />
             </span>
 
-            <span className="flex flex-col gap-1">
+            <span className="relative flex flex-col gap-1.5">
               {stats(character).map((stat) => (
                 <span key={stat.label} className="flex items-center gap-2">
-                  <span className="w-11 shrink-0 text-[9px] uppercase tracking-widest text-dim">
+                  <span className="w-10 shrink-0 text-[9px] font-semibold uppercase tracking-[0.14em] text-faint">
                     {stat.label}
                   </span>
-                  <span className="h-1.5 flex-1 bg-dim/25">
+                  <span className="h-1 flex-1 overflow-hidden rounded-full bg-bone/10">
                     <span
-                      className={`block h-full ${stat.tone}`}
+                      className={`block h-full rounded-full ${stat.tone}`}
                       style={{ width: `${stat.pct}%` }}
                     />
                   </span>
@@ -81,7 +91,7 @@ export default function CharacterStrip({ value, onChange, compact }: Props) {
             </span>
 
             {compact ? null : (
-              <span className="text-[11px] leading-snug text-dim">
+              <span className="relative text-[11px] leading-snug text-muted">
                 {character.note}
               </span>
             )}

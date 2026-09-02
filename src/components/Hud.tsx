@@ -12,8 +12,7 @@ function formatTime(seconds: number) {
   return `${minutes}:${String(rest).padStart(2, "0")}.${tenths}`;
 }
 
-/** The chunky bordered plate every HUD group sits on. */
-function Panel({
+function Pill({
   children,
   className = "",
 }: {
@@ -22,21 +21,26 @@ function Panel({
 }) {
   return (
     <div
-      className={`flex items-center gap-3 border-2 border-bone/80 bg-navy/90 px-3 py-2 shadow-[4px_4px_0_0_rgba(0,0,0,0.45)] ${className}`}
+      className={`panel-glass flex items-center gap-3 rounded-full px-3.5 py-2 ${className}`}
     >
       {children}
     </div>
   );
 }
 
+function Divider() {
+  return <span className="h-4 w-px bg-bone/12" aria-hidden />;
+}
+
 function Heart({ filled, color }: { filled: boolean; color: string }) {
   return (
-    <svg viewBox="0 0 16 16" className="h-[18px] w-[18px]" aria-hidden>
+    <svg viewBox="0 0 16 16" className="h-[17px] w-[17px]" aria-hidden>
       <path
-        d="M8 14.6 1.5 8.1C-0.5 6.1 0.6 2.5 4.1 2.5c1.9 0 3.2 1.2 3.9 2.4.7-1.2 2-2.4 3.9-2.4 3.5 0 4.6 3.6 2.6 5.6L8 14.6Z"
+        d="M8 14.4 1.7 8.2C-0.2 6.3 0.8 2.8 4.1 2.8c1.8 0 3.1 1.1 3.9 2.3.8-1.2 2.1-2.3 3.9-2.3 3.3 0 4.3 3.5 2.4 5.4L8 14.4Z"
         fill={filled ? color : "transparent"}
-        stroke={filled ? color : "#4A4F7A"}
-        strokeWidth="1.6"
+        stroke={filled ? color : "rgba(154,160,200,0.45)"}
+        strokeWidth="1.5"
+        strokeLinejoin="round"
       />
     </svg>
   );
@@ -45,16 +49,21 @@ function Heart({ filled, color }: { filled: boolean; color: string }) {
 function GemIcon() {
   return (
     <svg viewBox="0 0 12 12" className="h-3.5 w-3.5" aria-hidden>
-      <path d="M6 0 10 4.5 6 12 2 4.5Z" fill="currentColor" />
+      <path d="M6 0.5 10.2 4.6 6 11.5 1.8 4.6Z" fill="currentColor" />
     </svg>
   );
 }
 
 function KeyIcon() {
   return (
-    <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden>
-      <circle cx="5" cy="5" r="3.6" fill="none" stroke="currentColor" strokeWidth="2" />
-      <path d="M7.4 7.4 14 14M11 14h3M12.5 11.2l2 2" stroke="currentColor" strokeWidth="2" fill="none" />
+    <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden fill="none">
+      <circle cx="5.2" cy="5.2" r="3.4" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M7.6 7.6 13.6 13.6M10.8 14h2.8M12.2 11.4l1.6 1.6"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -70,101 +79,110 @@ function FlameIcon() {
   );
 }
 
+/** A run of small segments, used for ammo and for fuel. */
+function Gauge({
+  count,
+  filled,
+  tone,
+}: {
+  count: number;
+  filled: number;
+  tone: string;
+}) {
+  return (
+    <span className="flex gap-[3px]">
+      {Array.from({ length: count }, (_, i) => (
+        <span
+          key={i}
+          className={`block h-3 w-[5px] rounded-[2px] transition-colors duration-150 ${
+            i < filled ? tone : "bg-bone/12"
+          }`}
+        />
+      ))}
+    </span>
+  );
+}
+
 /** Hearts, gems, key, gear and the level timer, laid over the canvas. */
 export default function Hud({ snapshot }: { snapshot: Snapshot }) {
   const color = CHARACTERS[snapshot.characterId].color;
-  const hearts = Array.from({ length: snapshot.maxHearts }, (_, i) => i);
-  const rounds = Array.from({ length: snapshot.maxAmmo }, (_, i) => i);
-  const fuelSegments = Array.from({ length: 10 }, (_, i) => i);
   const lowFuel = snapshot.fuel <= 0.25;
   const hasGear = snapshot.hasGun || snapshot.hasJetpack;
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-4 p-3 font-display text-[11px] uppercase tracking-widest">
+    <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-4 p-4 text-[13px]">
       <div className="flex flex-col items-start gap-2">
-        <Panel>
+        <Pill>
           <span className="flex gap-1">
-            {hearts.map((i) => (
+            {Array.from({ length: snapshot.maxHearts }, (_, i) => (
               <Heart key={i} filled={i < snapshot.hearts} color={color} />
             ))}
           </span>
 
-          <span className="h-5 w-px bg-bone/25" />
+          <Divider />
 
-          <span className="flex items-center gap-1.5 text-mint">
+          <span className="flex items-center gap-1.5 font-semibold text-mint">
             <GemIcon />
             <span className="tabular-nums">
-              {snapshot.gems}/{snapshot.gemsTotal}
+              {snapshot.gems}
+              <span className="text-mint/50">/{snapshot.gemsTotal}</span>
             </span>
           </span>
 
-          <span className="h-5 w-px bg-bone/25" />
+          <Divider />
 
           <span
-            className={`flex items-center gap-1.5 ${
-              snapshot.hasKey ? "text-mint" : "text-dim"
+            className={`flex items-center transition-colors duration-200 ${
+              snapshot.hasKey ? "text-mint" : "text-faint"
             }`}
+            title={snapshot.hasKey ? "Key held" : "No key yet"}
           >
             <KeyIcon />
-            {snapshot.hasKey ? "Held" : "None"}
           </span>
-        </Panel>
+        </Pill>
 
         {hasGear ? (
-          <Panel>
+          <Pill>
             {snapshot.hasGun ? (
               <span className="flex items-center gap-2">
-                <span className="text-dim">Ammo</span>
-                <span className="flex gap-1">
-                  {rounds.map((i) => (
-                    <span
-                      key={i}
-                      className={`block h-3.5 w-1.5 ${
-                        i < snapshot.ammo ? "bg-orange" : "bg-dim/40"
-                      }`}
-                    />
-                  ))}
+                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-faint">
+                  Ammo
                 </span>
+                <Gauge
+                  count={snapshot.maxAmmo}
+                  filled={snapshot.ammo}
+                  tone="bg-orange"
+                />
               </span>
             ) : null}
 
-            {snapshot.hasGun && snapshot.hasJetpack ? (
-              <span className="h-5 w-px bg-bone/25" />
-            ) : null}
+            {snapshot.hasGun && snapshot.hasJetpack ? <Divider /> : null}
 
             {snapshot.hasJetpack ? (
               <span className="flex items-center gap-2">
                 <span className={lowFuel ? "text-pink" : "text-mint"}>
                   <FlameIcon />
                 </span>
-                <span className="flex gap-[3px]">
-                  {fuelSegments.map((i) => (
-                    <span
-                      key={i}
-                      className={`block h-3.5 w-1.5 ${
-                        i < Math.round(snapshot.fuel * 10)
-                          ? lowFuel
-                            ? "bg-pink"
-                            : "bg-mint"
-                          : "bg-dim/40"
-                      }`}
-                    />
-                  ))}
-                </span>
+                <Gauge
+                  count={10}
+                  filled={Math.round(snapshot.fuel * 10)}
+                  tone={lowFuel ? "bg-pink" : "bg-mint"}
+                />
               </span>
             ) : null}
-          </Panel>
+          </Pill>
         ) : null}
       </div>
 
-      <Panel className="flex-col items-end gap-1 py-2">
-        <span className="text-dim">
-          Level {snapshot.levelIndex + 1}/{snapshot.levelCount}
+      <Pill className="flex-col items-end gap-0.5 rounded-2xl px-4">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-faint">
+          Level {snapshot.levelIndex + 1}
+          <span className="text-faint/60">/{snapshot.levelCount}</span>
         </span>
-        <span className="text-base tabular-nums text-bone">
+        <span className="font-display text-lg leading-none tabular-nums">
           {formatTime(snapshot.time)}
         </span>
-      </Panel>
+      </Pill>
     </div>
   );
 }
