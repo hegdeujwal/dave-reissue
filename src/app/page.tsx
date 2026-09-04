@@ -156,8 +156,8 @@ export default function Home() {
         </div>
 
         <footer className="flex flex-wrap justify-between gap-x-8 gap-y-2 px-1 text-[11px] text-faint">
-          <span>Move A/D or arrows · Jump Space/W/↑</span>
-          <span>Shoot J/Ctrl · Jetpack Shift/K</span>
+          <span>Move A/D · Jump Space</span>
+          <span>Shoot left click/E · Jetpack double-tap Space</span>
           <span>Esc pause · R restart</span>
         </footer>
       </div>

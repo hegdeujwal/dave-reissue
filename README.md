@@ -8,14 +8,14 @@ Built with Next.js (App Router), TypeScript and Tailwind. Client-side only.
 
 ## Controls
 
-| Action        | Keys                   | Notes           |
-| ------------- | ---------------------- | --------------- |
-| Move          | `A` / `D` or `←` / `→` |                 |
-| Jump          | `Space`, `W` or `↑`    | Variable height |
-| Shoot         | `J` or `Ctrl`          | Needs the gun   |
-| Jetpack       | `Shift` or `K`         | Hold to fly     |
-| Pause         | `Esc`                  |                 |
-| Restart level | `R`                    |                 |
+| Action        | Keys                     | Notes             |
+| ------------- | ------------------------ | ------------------ |
+| Move          | `A` back / `D` forward   |                    |
+| Jump          | `Space`                  | Variable height    |
+| Shoot         | Left click or `E`        | Needs the gun      |
+| Jetpack       | Double-tap `Space`, hold | Needs the jetpack  |
+| Pause         | `Esc`                    |                    |
+| Restart level | `R`                      |                    |
 
 ## Gear
 
@@ -34,7 +34,7 @@ always be retried. Levels 8 to 10 need both.
 | - | --- | -------------- |
 | 1 | **Smooth camera** — lerps toward the player with look-ahead, clamped to the level, never flips by a screen width | `src/game/engine.ts` (`updateCamera`, `cameraTarget`), `CAMERA` in `theme.ts` |
 | 2 | **Checkpoints** — `C` tiles save your position and toast "Checkpoint saved"; death returns you there | `engine.ts` (`collectPickups`, `respawn`), `C` tiles in `levels.ts` |
-| 3 | **All key bindings** — WASD, arrows, Space, J/Ctrl and Shift/K all live at once, matched on `event.code`, held in a set, with `preventDefault` on Space and the arrows | `src/game/input.ts` |
+| 3 | **All key bindings** — A/D, Space, E and a held left click all live at once, matched on `event.code` (mouse held in the same set via a synthetic marker), with `preventDefault` on Space | `src/game/input.ts` |
 | 4 | **Not pixel art** — vector figures at device pixel ratio, built from shaded panels and round-capped limbs, with a walk cycle and squash on landing | `src/game/render.ts`, `JUICE` in `theme.ts` |
 | 5 | **Real physics** — fixed 1/120s timestep with interpolated rendering, variable jump height, 100ms coyote time, 120ms jump buffer, axis-by-axis AABB collision | `src/game/physics.ts`, the loop in `engine.ts`, `PHYSICS` in `theme.ts` |
 | 6 | **Tutorial** — level one is flat and safe, with hints that fire as you walk into column zones; levels 6 and 7 teach the gun and the jetpack the same way | `hints` in `levels.ts`, `src/components/ControlsPanel.tsx` |

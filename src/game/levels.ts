@@ -61,8 +61,8 @@ export const LEVELS: LevelData[] = [
       "################################################",
     ],
     hints: [
-      { from: 0, to: 6, text: "Walk with A and D, or the left and right arrows" },
-      { from: 7, to: 13, text: "Jump with Space, W or the up arrow" },
+      { from: 0, to: 6, text: "Walk with A and D" },
+      { from: 7, to: 13, text: "Jump with Space" },
       { from: 14, to: 20, text: "Mint gems are safe. Pick them up" },
       { from: 21, to: 26, text: "Pink hurts. Jump over the spikes" },
       { from: 27, to: 32, text: "Touch the mint flag to save a checkpoint" },
@@ -175,7 +175,7 @@ export const LEVELS: LevelData[] = [
       "##########################...###########################",
     ],
     hints: [
-      { from: 3, to: 9, text: "A gun. Shoot with J or Ctrl" },
+      { from: 3, to: 9, text: "A gun. Shoot with a left click or E" },
       { from: 12, to: 18, text: "Timber crates are not walls. Shoot a hole and walk through" },
       { from: 36, to: 42, text: "Turrets fire along their own row. Two hits and they are gone" },
     ],
@@ -201,7 +201,7 @@ export const LEVELS: LevelData[] = [
       "##############....#############.......##############",
     ],
     hints: [
-      { from: 3, to: 9, text: "A jetpack. Hold Shift or K to fly, and land to refuel" },
+      { from: 3, to: 9, text: "A jetpack. Double-tap Space and hold to fly, land to refuel" },
       { from: 11, to: 17, text: "Nine tiles of wall. No jump clears that" },
       { from: 30, to: 37, text: "Fuel canisters top the tank back up in mid-air" },
     ],

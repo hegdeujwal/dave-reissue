@@ -1,3 +1,5 @@
+import { JETPACK } from "./theme";
+
 export type Binding =
   | "left"
   | "right"
@@ -8,9 +10,12 @@ export type Binding =
   | "restart";
 
 /**
- * Every key the game listens to, keyed by `event.code` so the bindings do not
- * depend on the keyboard layout. WASD, the arrow keys and Space are all live
- * at the same time; none of them shadows another.
+ * Every key (and the left mouse button) the game listens to. Real keys are
+ * keyed by `event.code` so the bindings do not depend on the keyboard
+ * layout. "MouseLeft" and "SpaceDoubleTap" are not real codes — they are
+ * synthetic markers this module adds to and removes from the same held-keys
+ * set, which lets `isDown()` treat a held mouse button or an engaged
+ * double-tap exactly like a held key.
  */
 export const BINDINGS: Record<string, Binding> = {
   KeyA: "left",
@@ -18,14 +23,10 @@ export const BINDINGS: Record<string, Binding> = {
   KeyD: "right",
   ArrowRight: "right",
   Space: "jump",
-  KeyW: "jump",
   ArrowUp: "jump",
-  KeyJ: "shoot",
-  ControlLeft: "shoot",
-  ControlRight: "shoot",
-  ShiftLeft: "jet",
-  ShiftRight: "jet",
-  KeyK: "jet",
+  KeyE: "shoot",
+  MouseLeft: "shoot",
+  SpaceDoubleTap: "jet",
   Escape: "pause",
   KeyR: "restart",
 };
@@ -41,22 +42,35 @@ const SWALLOW = new Set([
 
 const INTERACTIVE = "button, a[href], input, select, textarea";
 
-/** Tracks held keys and one-shot presses for the whole game. */
+const DOUBLE_TAP_MS = JETPACK.doubleTap * 1000;
+
+/** Tracks held keys, the held mouse button, and one-shot presses. */
 export class Input {
   private readonly held = new Set<string>();
   private jumpPressed = false;
   private pausePressed = false;
   private restartPressed = false;
+  /**
+   * Timestamp of the last non-repeat Space keydown, for double-tap timing.
+   * Starts at -Infinity (not 0) so the very first press right after page
+   * load — when performance.now() is itself close to 0 — is never mistaken
+   * for a double-tap.
+   */
+  private lastSpaceDown = -Infinity;
 
   attach() {
     window.addEventListener("keydown", this.onKeyDown);
     window.addEventListener("keyup", this.onKeyUp);
+    window.addEventListener("mousedown", this.onMouseDown);
+    window.addEventListener("mouseup", this.onMouseUp);
     window.addEventListener("blur", this.clear);
   }
 
   detach() {
     window.removeEventListener("keydown", this.onKeyDown);
     window.removeEventListener("keyup", this.onKeyUp);
+    window.removeEventListener("mousedown", this.onMouseDown);
+    window.removeEventListener("mouseup", this.onMouseUp);
     window.removeEventListener("blur", this.clear);
     this.clear();
   }
@@ -72,7 +86,22 @@ export class Input {
 
     if (event.repeat) return;
 
-    if (binding === "jump") this.jumpPressed = true;
+    if (binding === "jump") {
+      if (event.code === "Space") {
+        // A second Space press within the window is a double-tap: engage
+        // the jetpack instead of buffering another jump for this press.
+        const now = performance.now();
+        const isDoubleTap = now - this.lastSpaceDown <= DOUBLE_TAP_MS;
+        this.lastSpaceDown = now;
+        if (isDoubleTap) {
+          this.held.add("SpaceDoubleTap");
+        } else {
+          this.jumpPressed = true;
+        }
+      } else {
+        this.jumpPressed = true;
+      }
+    }
     if (binding === "pause") this.pausePressed = true;
     if (binding === "restart") this.restartPressed = true;
     this.held.add(event.code);
@@ -81,14 +110,32 @@ export class Input {
   private readonly onKeyUp = (event: KeyboardEvent) => {
     if (SWALLOW.has(event.code)) event.preventDefault();
     this.held.delete(event.code);
+    // Releasing Space always stops a double-tap thrust in progress.
+    if (event.code === "Space") this.held.delete("SpaceDoubleTap");
   };
 
-  /** Drop every held key, so alt-tabbing does not leave the player running. */
+  private readonly onMouseDown = (event: MouseEvent) => {
+    if (event.button !== 0) return;
+    // Let menu buttons and other UI keep their own click behaviour.
+    const target = event.target as HTMLElement | null;
+    if (target?.closest?.(INTERACTIVE)) return;
+    event.preventDefault();
+    this.held.add("MouseLeft");
+  };
+
+  private readonly onMouseUp = (event: MouseEvent) => {
+    if (event.button !== 0) return;
+    this.held.delete("MouseLeft");
+  };
+
+  /** Drop every held key and the mouse button, so alt-tabbing does not leave
+   *  the player firing or flying. */
   readonly clear = () => {
     this.held.clear();
     this.jumpPressed = false;
     this.pausePressed = false;
     this.restartPressed = false;
+    this.lastSpaceDown = -Infinity;
   };
 
   isDown(binding: Binding) {
@@ -120,10 +167,14 @@ export class Input {
 
 /** Rows for the Controls panel, so the UI and the bindings cannot drift apart. */
 export const CONTROL_ROWS: { action: string; keys: string; note?: string }[] = [
-  { action: "Move", keys: "A / D  or  ← / →" },
-  { action: "Jump", keys: "Space,  W  or  ↑" },
-  { action: "Shoot", keys: "J  or  Ctrl", note: "Needs the gun" },
-  { action: "Jetpack", keys: "Shift  or  K", note: "Hold to fly" },
+  { action: "Move", keys: "A / D" },
+  { action: "Jump", keys: "Space" },
+  { action: "Shoot", keys: "Left click or E", note: "Needs the gun" },
+  {
+    action: "Jetpack",
+    keys: "Double-tap Space, hold",
+    note: "Needs the jetpack",
+  },
   { action: "Pause", keys: "Esc" },
   { action: "Restart level", keys: "R" },
 ];

@@ -201,6 +201,9 @@ export const WEAPON = {
 
 /** The jetpack. Fuel refills on the ground, so a shaft can always be retried. */
 export const JETPACK = {
+  /** A second Space press within this long counts as a double-tap. Holding
+   *  after that double-tap keeps the thrust going, releasing stops it. */
+  doubleTap: 0.3,
   /** Upward acceleration while thrusting, fighting gravity 2200. */
   thrust: 3700,
   /** Fastest the pack will lift you. */
